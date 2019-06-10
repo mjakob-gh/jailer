@@ -91,6 +91,7 @@ get_args()
                 ;;
             a)
                 if [ ! X"${OPTARG}" = "X" ]; then
+                    ABI_VERSION=${OPTARG}
                     echo "ABI Version: ${ABI_VERSION}"
                 else
                     echo "INFO: no ABI VERSION specified, using default (${ABI_VERSION})"
@@ -112,8 +113,8 @@ get_args()
 usage()
 {
     echo "Usage:"
-    echo "  $PGM create jailname [-i ipaddress -t timezone -r reponame -d ipadress -p \"list of packages\" -a <ABI_Version> -s]"
     echo ""
+    echo "  $PGM create jailname [-i ipaddress -t timezone -r reponame -d ipadress -p \"list of packages\" -a <ABI_Version> -s]"
     echo "       -i ipadress             : set IP address of Jail"
     echo ""
     echo "       -t timezone             : set Timezone of Jail"
@@ -128,10 +129,10 @@ usage()
     echo "  $PGM destroy jailname"
     echo ""
     echo ""
-    echo "*) Possible values for ABI_VERSION: (x86, 64 Bit)"
-    echo "- FreeBSD:11:amd64"
-    echo "- FreeBSD:12:amd64"
-    echo "- FreeBSD:13:amd64"
+    echo "  *) Possible values for ABI_VERSION: (x86, 64 Bit)"
+    echo "    - FreeBSD:11:amd64"
+    echo "    - FreeBSD:12:amd64"
+    echo "    - FreeBSD:13:amd64"
     echo ""
     exit $FAILURE
 }
