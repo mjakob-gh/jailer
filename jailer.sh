@@ -113,6 +113,7 @@ usage()
 {
     echo "Usage:"
     echo "  $PGM create jailname [-i ipaddress -t timezone -r reponame -d ipadress -p \"list of packages\" -a <ABI_Version> -s]"
+    echo ""
     echo "       -i ipadress             : set IP address of Jail"
     echo ""
     echo "       -t timezone             : set Timezone of Jail"
@@ -178,15 +179,20 @@ install_runtime_pkg()
 
 install_extra_pkg()
 {
-    echo "Install additional pkgs" | tee -a ${LOG_FILE}
+    EXTRA_PKGS="FreeBSD-libcasper FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at"
+    
+    echo "Install additional packages: ${EXTRA_PKGS}" | tee -a ${LOG_FILE}
+
+    pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} ${EXTRA_PKGS} | tee -a ${LOG_FILE}
+
     # neccessary for ping(?)
-    pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} FreeBSD-libcasper | tee -a ${LOG_FILE}
+    #pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} FreeBSD-libcasper | tee -a ${LOG_FILE}
 
     # install vi
-    pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} FreeBSD-vi | tee -a ${LOG_FILE}
+    #pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} FreeBSD-vi | tee -a ${LOG_FILE}
 
     # 
-    pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} FreeBSD-libexecinfo | tee -a ${LOG_FILE}
+    #pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} FreeBSD-libexecinfo | tee -a ${LOG_FILE}
     echo ""
 }
 
