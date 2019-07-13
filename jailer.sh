@@ -34,6 +34,7 @@ NAME_SERVER=$(local-unbound-control list_forwards | grep -e '^\. IN' | awk '{pri
 LOG_FILE=""
 ABI_VERSION=$(pkg config abi)
 PKGS=""
+SERVICES=""
 AUTO_START=false
 
 # see "/usr/local/etc/pkg/repos/..."
@@ -45,7 +46,7 @@ REPO_NAME="FreeBSD-base"
 
 get_args()
 {
-    while getopts "i:t:r:d:p:a:s" option
+    while getopts "i:t:r:d:p:a:e:s" option
     do
         case $option in
             i)
@@ -98,7 +99,12 @@ get_args()
                     echo "INFO: no ABI VERSION specified, using default (${ABI_VERSION})"
                 fi
                 ;;
-
+            e)
+                if [ ! X"${OPTARG}" = "X" ]; then
+                    SERVICES=${OPTARG}
+                    echo "Enabling services: ${SERVICES}"
+                fi
+                ;;
             s)
                 AUTO_START=true
                 ;;
@@ -125,6 +131,7 @@ usage()
     echo "       -p \"list of packages\"   : packages to install in the Jail"
     echo "       -a <ABI_Version>        : set the ABI Version to match the"
     echo "                                 packages to be installed to the Jail *)"
+    echo "       -e \"list of services\"   : enable existing or just installed (-p ...) services"
     echo "       -s                      : start the Jail after the installation is finished"
     echo ""
     echo "  $PGM destroy jailname"
@@ -201,6 +208,16 @@ install_pkgs()
     fi
 }
 
+enable_services()
+{
+    (
+    for SERVICE in ${SERVICES}
+    {
+        sysrc -R ${JAIL_DIR} "${SERVICE}_enable=YES"
+    }
+    ) | column -t    
+}
+
 create_jailconf_entry()
 {
 echo "add jail configuration to ${JAIL_CONF}" | tee -a ${LOG_FILE}
@@ -266,10 +283,10 @@ setup_dma()
 
     # Mailing
     (
-    sysrc -R ${JAIL_DIR} sendmail_enable=NO
-    sysrc -R ${JAIL_DIR} sendmail_submit_enable=NO
-    sysrc -R ${JAIL_DIR} sendmail_outbound_enable=NO
-    sysrc -R ${JAIL_DIR} sendmail_msp_queue_enable=NO
+        sysrc -R ${JAIL_DIR} sendmail_enable=NO
+        sysrc -R ${JAIL_DIR} sendmail_submit_enable=NO
+        sysrc -R ${JAIL_DIR} sendmail_outbound_enable=NO
+        sysrc -R ${JAIL_DIR} sendmail_msp_queue_enable=NO
     ) | column -t
 
     # mail configuration
@@ -327,6 +344,11 @@ create_jail()
         setup_dma
         # install additional packages
         install_pkgs
+        # enable services specifies with -e argument
+        if [ -n ${SERVICES} ]; then
+            enable_services
+        fi
+        # start the jail when -s argument is set
         if [ ${AUTO_START} = "true" ]; then
             service jail start ${JAIL_NAME}
         fi
