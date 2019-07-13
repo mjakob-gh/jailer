@@ -28,7 +28,8 @@ JAIL_DIR="${JAIL_DATASET_ROOT#zroot}/${JAIL_NAME}"
 JAIL_IP="127.0.0.1"
 JAIL_UUID=$(uuidgen)
 TIME_ZONE="Europe/Berlin"
-NAME_SERVER=$(grep nameserver /etc/resolv.conf | tail -n 1 | awk '{print $2}')
+#NAME_SERVER=$(grep nameserver /etc/resolv.conf | tail -n 1 | awk '{print $2}')
+NAME_SERVER=$(local-unbound-control list_forwards | grep -e '^\. IN' | awk '{print $NF}')
 
 LOG_FILE=""
 ABI_VERSION=$(pkg config abi)
@@ -114,11 +115,11 @@ usage()
 {
     echo "Usage:"
     echo ""
-    echo "  $PGM create jailname [-i ipaddress -t timezone -r reponame -d ipadress -p \"list of packages\" -a <ABI_Version> -s]"
-    echo "       -i ipadress             : set IP address of Jail"
+    echo "  $PGM create jailname [-i ipaddress -t timezone -r reponame -d ipaddress -p \"list of packages\" -a <ABI_Version> -s]"
+    echo "       -i ipaddress            : set IP address of Jail"
     echo ""
     echo "       -t timezone             : set Timezone of Jail"
-    echo "       -d ipadress             : set DNS server IP address of Jail"
+    echo "       -d ipaddress            : set DNS server IP address of Jail"
     echo ""
     echo "       -r reponame             : set pkg repository of Jail"
     echo "       -p \"list of packages\"   : packages to install in the Jail"
@@ -170,30 +171,14 @@ create_dataset()
     echo ""
 }
 
-install_runtime_pkg()
+install_baseos_pkg()
 {
-    echo "Install FreeBSD-runtime pkg" | tee -a ${LOG_FILE}
-    # Install the base system
-    pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} FreeBSD-runtime | tee -a ${LOG_FILE}
-    echo ""
-}
-
-install_extra_pkg()
-{
+    # Some additional basesystem pkgs, extend the list if needed
     EXTRA_PKGS="FreeBSD-libcasper FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at"
-    
-    echo "Install additional packages: ${EXTRA_PKGS}" | tee -a ${LOG_FILE}
 
-    pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} ${EXTRA_PKGS} | tee -a ${LOG_FILE}
-
-    # neccessary for ping(?)
-    #pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} FreeBSD-libcasper | tee -a ${LOG_FILE}
-
-    # install vi
-    #pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} FreeBSD-vi | tee -a ${LOG_FILE}
-
-    # 
-    #pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} FreeBSD-libexecinfo | tee -a ${LOG_FILE}
+    echo "Install FreeBSD Base System pkgs: FreeBSD-runtime + ${EXTRA_PKGS}" | tee -a ${LOG_FILE}
+    # Install the base system
+    pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} FreeBSD-runtime ${EXTRA_PKGS} | tee -a ${LOG_FILE}
     echo ""
 }
 
@@ -266,7 +251,7 @@ setup_system()
     # or pkg inside the jail wont work.
     mkdir ${JAIL_DIR}/usr/share/keys/pkg/revoked/
 
-    # Timezine
+    # set timezone in jail
     echo "Setup timezone: ${TIME_ZONE}" | tee -a ${LOG_FILE}
     tzsetup -sC ${JAIL_DIR} "${TIME_ZONE}"
 
@@ -296,6 +281,9 @@ destroy_dataset()
 {
     if check_dataset; then
         echo "Deleting dataset: ${JAIL_DATASET_ROOT}/${JAIL_NAME}" | tee -a ${LOG_FILE}
+        # forcibly unmount the dataset to prevent problems
+        # zfs "destroying" the dataset
+        umount -f ${JAIL_DIR}
         zfs destroy ${JAIL_DATASET_ROOT}/${JAIL_NAME}
     else
         echo "ERROR: no dataset ${JAIL_DATASET_ROOT}/${JAIL_NAME}"
@@ -334,14 +322,12 @@ create_jail()
     else
         create_dataset
         create_jailconf_entry
-        install_runtime_pkg
-        install_extra_pkg
+        install_baseos_pkg
         setup_system
         setup_dma
         # install additional packages
         install_pkgs
         if [ ${AUTO_START} = "true" ]; then
-            echo "Starting Jail: ${JAIL_NAME}"
             service jail start ${JAIL_NAME}
         fi
     fi
