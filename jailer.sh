@@ -35,6 +35,7 @@ LOG_FILE=""
 ABI_VERSION=$(pkg config abi)
 PKGS=""
 SERVICES=""
+COPY_FILES=""
 AUTO_START=false
 
 # see "/usr/local/etc/pkg/repos/..."
@@ -46,7 +47,7 @@ REPO_NAME="FreeBSD-base"
 
 get_args()
 {
-    while getopts "i:t:r:d:p:a:e:s" option
+    while getopts "i:t:r:d:p:c:a:e:s" option
     do
         case $option in
             i)
@@ -91,6 +92,12 @@ get_args()
                     echo "INFO: no packages specified."
                 fi
                 ;;
+            c)
+                if [ ! X"${OPTARG}" = "X" ]; then
+                    COPY_FILES=${OPTARG}
+                    echo "Copying files: ${COPY_FILES}"
+                fi
+                ;;
             a)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     ABI_VERSION=${OPTARG}
@@ -129,9 +136,17 @@ usage()
     echo ""
     echo "       -r reponame             : set pkg repository of Jail"
     echo "       -p \"list of packages\"   : packages to install in the Jail"
+    echo "       -c \"/dirA/fileA:<JAIL_DIR>/root/,/dirB/fileB:<JAIL_DIR>:/otherdir/fileC\""
+    echo "                               : copy files INTO the Jail"
+    echo "                                 NOTE:"
+    echo "                                 - consider beginning and trailing slashes"
+    echo "                                 - consider the file permissions"
+    echo "                                 - consider whitespace in the parameter string"
+    echo ""
     echo "       -a <ABI_Version>        : set the ABI Version to match the"
     echo "                                 packages to be installed to the Jail *)"
     echo "       -e \"list of services\"   : enable existing or just installed (-p ...) services"
+    echo ""
     echo "       -s                      : start the Jail after the installation is finished"
     echo ""
     echo "  $PGM destroy jailname"
@@ -181,7 +196,7 @@ create_dataset()
 install_baseos_pkg()
 {
     # Some additional basesystem pkgs, extend the list if needed
-    EXTRA_PKGS="FreeBSD-libcasper FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at"
+    EXTRA_PKGS="FreeBSD-libcasper FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at FreeBSD-dma"
 
     echo "Install FreeBSD Base System pkgs: FreeBSD-runtime + ${EXTRA_PKGS}" | tee -a ${LOG_FILE}
     # Install the base system
@@ -200,22 +215,53 @@ install_pkgs()
         for PKG in ${PKGS}
         {
             echo -n "${PKG} "
-            pkg --rootdir ${JAIL_DIR} -R ${JAIL_DIR}/etc/pkg/ -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install ${PKG} | tee -a ${LOG_FILE}
+            #pkg --rootdir ${JAIL_DIR} -R ${JAIL_DIR}/etc/pkg/ -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install ${PKG} | tee -a ${LOG_FILE}
+            pkg -j ${JAIL_NAME} -o ASSUME_ALWAYS_YES=true install ${PKG} | tee -a ${LOG_FILE}
             if [ $? -lt 0 ]; then
                  echo "ERROR: installation of ${PKG} failed"
             fi
         }
+        echo ""
     fi
 }
 
 enable_services()
 {
-    (
-    for SERVICE in ${SERVICES}
-    {
-        sysrc -R ${JAIL_DIR} "${SERVICE}_enable=YES"
-    }
-    ) | column -t    
+    if [ ! X"${SERVICES}" = "X" ]; then
+        echo "Enabling Services:"
+        echo "------------------"
+        (
+            for SERVICE in ${SERVICES}
+            {
+                #sysrc -R ${JAIL_DIR} "${SERVICE}_enable=YES"
+                service -j ${JAIL_NAME} ${SERVICE} enable
+            }
+        ) | column -t
+        echo ""
+    fi
+}
+
+copy_files()
+{
+    if [ ! X"${COPY_FILES}" = "X" ]; then
+        echo "Copying files:"
+        echo "--------------"
+
+        OLDIFS=$IFS
+        IFS=","
+
+        (
+            for COPY_FILE in $COPY_FILES
+            {
+                SRC=${COPY_FILE%%:*}
+                DST=${COPY_FILE##*:}
+                echo "${SRC} -> ${JAIL_DIR}/${DST}"
+                cp -a "${SRC}" "${JAIL_DIR}/${DST}"
+            }
+        ) | column -t
+        IFS=$OLDIFS
+        echo ""
+    fi
 }
 
 create_jailconf_entry()
@@ -254,6 +300,7 @@ echo ""
 setup_system()
 {
     echo "Setup jail: \"${JAIL_NAME}\"" | tee -a ${LOG_FILE}
+    echo "----------------------------"
     # add some default values for /etc/rc.conf
     # but first create the file, so sysrc wont show an error
     touch ${JAIL_DIR}/etc/rc.conf
@@ -274,14 +321,9 @@ setup_system()
 
     # Network
     echo "nameserver ${NAME_SERVER}" > ${JAIL_DIR}/etc/resolv.conf
-}
-
-setup_dma()
-{
-    # mailing
-    pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true install -r ${REPO_NAME} FreeBSD-dma | tee -a ${LOG_FILE}
 
     # Mailing
+    echo "configure dma mailer"
     (
         sysrc -R ${JAIL_DIR} sendmail_enable=NO
         sysrc -R ${JAIL_DIR} sendmail_submit_enable=NO
@@ -292,6 +334,7 @@ setup_dma()
     # mail configuration
     mkdir ${JAIL_DIR}/etc/mail/
     cp -a ${JAIL_DIR}/usr/share/examples/dma/mailer.conf ${JAIL_DIR}/etc/mail/
+    echo ""
 }
 
 destroy_dataset()
@@ -305,6 +348,7 @@ destroy_dataset()
     else
         echo "ERROR: no dataset ${JAIL_DATASET_ROOT}/${JAIL_NAME}"
     fi
+    echo ""
 }
 
 destroy_jailconf_entry()
@@ -315,6 +359,7 @@ destroy_jailconf_entry()
     else
         echo "ERROR: no entry ${JAIL_NAME} in \"${JAIL_CONF}\""
     fi
+    echo ""
 }
 
 #####################################
@@ -325,6 +370,7 @@ create_log_file()
 {
     LOG_FILE="/tmp/jailer_${ACTION}_${JAIL_NAME}_$(date +%Y%m%d%H%M).log"
     echo "INFO: Logs are written to: ${LOG_FILE}"
+    echo ""
 }
 
 create_jail()
@@ -341,13 +387,19 @@ create_jail()
         create_jailconf_entry
         install_baseos_pkg
         setup_system
-        setup_dma
+
+        service jail start ${JAIL_NAME}
+
         # install additional packages
         install_pkgs
-        # enable services specifies with -e argument
-        if [ -n ${SERVICES} ]; then
-            enable_services
-        fi
+        # enable services specified in -e argument
+        enable_services
+
+        service jail stop ${JAIL_NAME}
+
+        # copy files into the jail specified in -c argument
+        copy_files
+
         # start the jail when -s argument is set
         if [ ${AUTO_START} = "true" ]; then
             service jail start ${JAIL_NAME}
@@ -369,6 +421,7 @@ destroy_jail()
         destroy_jailconf_entry
         destroy_dataset
     fi
+    echo ""
 }
 
 # check for numbers of arguments
