@@ -1,0 +1,24 @@
+%%JAIL_NAME%% {
+    # Hostname
+    host.hostname = "%%JAIL_NAME%%.local";
+    host.hostuuid = "%%JAIL_UUID%%";
+
+    # Network
+    interface = re0;
+    ip4.addr = %%JAIL_IP%%;
+    allow.raw_sockets;
+
+    # Systemvalues
+    devfs_ruleset = 4;
+
+    sysvmsg = new;
+    sysvsem = new;
+    sysvshm = new;
+
+    path = "%%JAIL_DIR%%";
+    allow.mount.zfs;
+
+    # Start Script
+    exec.start  = "/bin/sh /etc/rc";
+    exec.stop   = "/bin/sh /etc/rc.shutdown";
+}
