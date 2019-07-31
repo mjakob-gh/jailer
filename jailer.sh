@@ -19,15 +19,16 @@ ARG_NUM=$#
 SUCCESS=0
 FAILURE=1
 
-# initialise variables/set default values
+# load configuration file
+# default values
+. /usr/local/etc/jailer.conf
+
+# initialise variables
 JAIL_NAME=""
 JAIL_CONF="/etc/jail.conf"
-JAIL_DATASET_ROOT="zroot/jails"
-JAIL_DIR="${JAIL_DATASET_ROOT#zroot}/${JAIL_NAME}"
 
-JAIL_IP="127.0.0.1"
+JAIL_IP=""
 JAIL_UUID=$(uuidgen)
-TIME_ZONE="Europe/Berlin"
 #NAME_SERVER=$(grep nameserver /etc/resolv.conf | tail -n 1 | awk '{print $2}')
 NAME_SERVER=$(local-unbound-control list_forwards | grep -e '^\. IN' | awk '{print $NF}')
 
@@ -37,9 +38,9 @@ PKGS=""
 SERVICES=""
 COPY_FILES=""
 AUTO_START=false
-
-# see "/usr/local/etc/pkg/repos/..."
-REPO_NAME="FreeBSD-base"
+BASE_UPDATE=false
+PKG_UPDATE=false
+PKG_QUIET=""
 
 ##################################
 ## functions                    ##
@@ -47,15 +48,15 @@ REPO_NAME="FreeBSD-base"
 
 get_args()
 {
-    while getopts "i:t:r:d:p:c:a:e:s" option
+    while getopts "a:t:r:n:i:c:x:e:bpsq" option
     do
         case $option in
-            i)
-                if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
+            a)
+                if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
                     JAIL_IP=${OPTARG}
                     echo "IP: ${JAIL_IP}"
                 else
-                    echo "ERROR: invalid IP address ${JAIL_IP}"
+                    echo "ERROR: invalid IP address (${OPTARG})"
                     exit 2
                 fi
                 ;;
@@ -76,15 +77,15 @@ get_args()
                     echo "INFO: no repository specified, using default ${REPO_NAME}."
                 fi
                 ;;
-            d)
-                if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
+            n)
+                if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
                     NAME_SERVER=${OPTARG}
                     echo "Nameserver: ${NAME_SERVER}"
                 else
-                    echo "INFO: invalid IP address for nameserver, using default ${NAME_SERVER}"
+                    echo "INFO: invalid IP address for nameserver (${OPTARG}), using default ${NAME_SERVER}"
                 fi
                 ;;
-            p)
+            i)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     PKGS=${OPTARG}
                     echo "Install packages: ${PKGS}"
@@ -98,7 +99,7 @@ get_args()
                     echo "Copying files: ${COPY_FILES}"
                 fi
                 ;;
-            a)
+            x)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     ABI_VERSION=${OPTARG}
                     echo "ABI Version: ${ABI_VERSION}"
@@ -112,10 +113,18 @@ get_args()
                     echo "Enabling services: ${SERVICES}"
                 fi
                 ;;
+            b)
+                BASE_UPDATE=true
+                ;;
+            p)
+                PKG_UPDATE=true
+                ;;
             s)
                 AUTO_START=true
                 ;;
-
+            q)
+                PKG_QUIET="--quiet"
+                ;;
             *)
                 usage
                 ;;
@@ -128,14 +137,15 @@ usage()
 {
     echo "Usage:"
     echo ""
-    echo "  $PGM create jailname [-i ipaddress -t timezone -r reponame -d ipaddress -p \"list of packages\" -a <ABI_Version> -s]"
-    echo "       -i ipaddress            : set IP address of Jail"
+    echo "  $PGM create jailname [-a <ipaddress> -t <timezone> -r <reponame> -n <ipaddress> -i \"list of packages\" -x <ABI_Version> -e \"list of services\" -s -q]"
+    echo "       -a <ipaddress>          : set IP address of Jail"
     echo ""
-    echo "       -t timezone             : set Timezone of Jail"
-    echo "       -d ipaddress            : set DNS server IP address of Jail"
+    echo "       -t <timezone>           : set Timezone of Jail"
+    echo "       -n <ipaddress>          : set DNS server IP address of Jail"
     echo ""
-    echo "       -r reponame             : set pkg repository of Jail"
-    echo "       -p \"list of packages\"   : packages to install in the Jail"
+    echo "       -r <reponame>           : set pkg repository of Jail"
+    echo "       -i \"list of packages\"   : packages to install in the Jail"
+    echo ""
     echo "       -c \"/dirA/fileA:<JAIL_DIR>/root/,/dirB/fileB:<JAIL_DIR>:/otherdir/fileC\""
     echo "                               : copy files INTO the Jail"
     echo "                                 NOTE:"
@@ -143,13 +153,23 @@ usage()
     echo "                                 - consider the file permissions"
     echo "                                 - consider whitespace in the parameter string"
     echo ""
-    echo "       -a <ABI_Version>        : set the ABI Version to match the"
+    echo "       -x <ABI_Version>        : set the ABI Version to match the"
     echo "                                 packages to be installed to the Jail *)"
     echo "       -e \"list of services\"   : enable existing or just installed (-p ...) services"
     echo ""
     echo "       -s                      : start the Jail after the installation is finished"
+    echo "       -q                      : dont show messages of pkg command"
     echo ""
-    echo "  $PGM destroy jailname"
+    echo "  $PGM destroy <jailname>"
+    echo ""
+    echo "  $PGM update <jailname> [-s]  : pkg update/upgrade Jail"
+    echo "       -b                      : update the pkgbase system"
+    echo "       -p                      : update the installed packages"
+    echo "       -s                      : restart Jail after update"
+    echo ""
+    echo "  $PGM start <jailname>"
+    echo "  $PGM stop <jailname>"
+    echo "  $PGM restart <jailname>"
     echo ""
     echo ""
     echo "  *) Possible values for ABI_VERSION: (x86, 64 Bit)"
@@ -163,7 +183,7 @@ usage()
 check_repo()
 {
     if [ ! -f /usr/local/etc/pkg/repos/${REPO_NAME}.conf ]; then
-        echo "ERROR: Repo ${REPO_NAME} not found."
+        echo "ERROR: Repository ${REPO_NAME} not found."
         exit 2
     fi
 }
@@ -189,7 +209,7 @@ check_dataset()
 create_dataset()
 {
     echo "create zfs data-set: ${JAIL_DATASET_ROOT}/${JAIL_NAME}"
-    zfs create -o compress=lz4 ${JAIL_DATASET_ROOT}/${JAIL_NAME}
+    zfs create -o compression=on ${JAIL_DATASET_ROOT}/${JAIL_NAME}
     echo ""
 }
 
@@ -200,7 +220,7 @@ install_baseos_pkg()
 
     echo "Install FreeBSD Base System pkgs: FreeBSD-runtime + ${EXTRA_PKGS}" | tee -a ${LOG_FILE}
     # Install the base system
-    pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install -r ${REPO_NAME} FreeBSD-runtime ${EXTRA_PKGS} | tee -a ${LOG_FILE}
+    pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install ${PKG_QUIET} --repository ${REPO_NAME} FreeBSD-runtime ${EXTRA_PKGS} | tee -a ${LOG_FILE}
     echo ""
 }
 
@@ -210,13 +230,13 @@ install_pkgs()
         echo "Install pkgs:"
         echo "-------------"
         # install the pkg package
-        pkg --rootdir ${JAIL_DIR} -R ${JAIL_DIR}/etc/pkg/ -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install pkg | tee -a ${LOG_FILE}
+        pkg --rootdir ${JAIL_DIR} -R ${JAIL_DIR}/etc/pkg/ -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install ${PKG_QUIET} pkg | tee -a ${LOG_FILE}
         echo -n "pkg "
         for PKG in ${PKGS}
         {
             echo -n "${PKG} "
             #pkg --rootdir ${JAIL_DIR} -R ${JAIL_DIR}/etc/pkg/ -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install ${PKG} | tee -a ${LOG_FILE}
-            pkg -j ${JAIL_NAME} -o ASSUME_ALWAYS_YES=true install ${PKG} | tee -a ${LOG_FILE}
+            pkg -j ${JAIL_NAME} -o ASSUME_ALWAYS_YES=true install ${PKG_QUIET} ${PKG} | tee -a ${LOG_FILE}
             if [ $? -lt 0 ]; then
                  echo "ERROR: installation of ${PKG} failed"
             fi
@@ -266,35 +286,16 @@ copy_files()
 
 create_jailconf_entry()
 {
-echo "add jail configuration to ${JAIL_CONF}" | tee -a ${LOG_FILE}
-cat << EOF >> ${JAIL_CONF}
+    echo "add jail configuration to ${JAIL_CONF}" | tee -a ${LOG_FILE}
 
-${JAIL_NAME} {
-    # Hostname
-    host.hostname = "${JAIL_NAME}.local";
-    host.hostuuid = "${JAIL_UUID}";
+    sed \
+        -e "s|%%JAIL_NAME%%|${JAIL_NAME}|g" \
+        -e "s|%%JAIL_UUID%%|${JAIL_UUID}|g" \
+        -e "s|%%JAIL_IP%%|${JAIL_IP}|g"     \
+        -e "s|%%JAIL_DIR%%|${JAIL_DIR}|g"   \
+         ${TEMPLATE_DIR}/${JAIL_TEMPLATE} >> ${JAIL_CONF}
 
-    # Network
-    interface = re0;
-    ip4.addr = ${JAIL_IP};
-    allow.raw_sockets;
-
-    # Systemvalues
-    devfs_ruleset = 4;
-
-    sysvmsg = new;
-    sysvsem = new;
-    sysvshm = new;
-
-    path = "${JAIL_DIR}";
-    allow.mount.zfs;
-
-    # Start Script
-    exec.start  = "/bin/sh /etc/rc";
-    exec.stop   = "/bin/sh /etc/rc.shutdown";
-}
-EOF
-echo ""
+    echo ""
 }
 
 setup_system()
@@ -331,6 +332,16 @@ setup_system()
         sysrc -R ${JAIL_DIR} sendmail_msp_queue_enable=NO
     ) | column -t
 
+    # setup repository
+    mkdir -p ${JAIL_DIR}/usr/local/etc/pkg/repos
+    echo "FreeBSD: { enabled: yes }" > ${JAIL_DIR}/usr/local/etc/pkg/repos/FreeBSD.conf
+
+    if [ -f ${TEMPLATE_DIR}/FreeBSD-base.conf ]; then
+        cp -a ${TEMPLATE_DIR}/FreeBSD-base.conf ${JAIL_DIR}/usr/local/etc/pkg/repos
+    else
+        echo "WARNING: No pkgbase repo \"FreeBSD-base.conf\" found, please check \"${TEMPLATE_DIR}\""
+    fi
+
     # mail configuration
     mkdir ${JAIL_DIR}/etc/mail/
     cp -a ${JAIL_DIR}/usr/share/examples/dma/mailer.conf ${JAIL_DIR}/etc/mail/
@@ -362,6 +373,21 @@ destroy_jailconf_entry()
     echo ""
 }
 
+start_jail()
+{
+
+}
+
+stop_jail()
+{
+
+}
+
+restart_jail()
+{
+
+}
+
 #####################################
 # Main functions                    #
 #####################################
@@ -375,6 +401,11 @@ create_log_file()
 
 create_jail()
 {
+    if [ X"${JAIL_IP}" = "X" ]; then
+        echo "ERROR: no ip adresse given (-a)"
+        exit 2
+    fi
+
     JAIL_DIR="${JAIL_DATASET_ROOT#zroot}/${JAIL_NAME}"
     if check_jailconf; then
         echo "ERROR: $JAIL_NAME already exists in ${JAIL_CONF}."
@@ -389,6 +420,7 @@ create_jail()
         setup_system
 
         service jail start ${JAIL_NAME}
+        service pf reload
 
         # install additional packages
         install_pkgs
@@ -410,6 +442,7 @@ create_jail()
 destroy_jail()
 {
     JAIL_DIR="${JAIL_DATASET_ROOT#zroot}/${JAIL_NAME}"
+
     if ! check_jailconf; then
         echo "ERROR: $JAIL_NAME does not exist."
         exit 2
@@ -422,6 +455,31 @@ destroy_jail()
         destroy_dataset
     fi
     echo ""
+}
+
+update_jail()
+{
+    JAIL_DIR="${JAIL_DATASET_ROOT#zroot}/${JAIL_NAME}"
+
+    if [ ${BASE_UPDATE} = "true" ]; then
+        echo "Updating system"
+        echo "---------------"
+        pkg -j ${JAIL_NAME} -o ASSUME_ALWAYS_YES=true update  --repository ${REPO_NAME} ${PKG_QUIET} | tee -a ${LOG_FILE}
+        pkg -j ${JAIL_NAME} -o ASSUME_ALWAYS_YES=true upgrade --repository ${REPO_NAME} ${PKG_QUIET} | tee -a ${LOG_FILE}
+        echo ""
+    fi
+
+    if [ ${PKG_UPDATE} = "true" ]; then
+        echo "Updating packages"
+        echo "-----------------"
+        pkg -j ${JAIL_NAME} -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD ${PKG_QUIET} | tee -a ${LOG_FILE}
+        pkg -j ${JAIL_NAME} -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD ${PKG_QUIET} | tee -a ${LOG_FILE}
+        echo ""
+    fi
+
+    if [ $? -lt 0 ]; then
+        echo "ERROR: installation of ${PKG} failed"
+    fi
 }
 
 # check for numbers of arguments
@@ -446,6 +504,23 @@ case "$ACTION" in
         get_args "$@"
         create_log_file
         destroy_jail
+        ;;
+    update)
+        shift 2
+        get_args "$@"
+        update_jail
+        if [ ${AUTO_START} = "true" ]; then
+            service jail restart ${JAIL_NAME}
+        fi
+        ;;
+    start)
+        service jail start ${JAIL_NAME}
+        ;;
+    stop)
+        service jail stop ${JAIL_NAME}
+        ;;
+    restart)
+        service jail restart ${JAIL_NAME}
         ;;
     *) usage
 esac
