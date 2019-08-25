@@ -42,16 +42,21 @@ BASE_UPDATE=false
 PKG_UPDATE=false
 PKG_QUIET=""
 
+FMT="\t%22s: %s\n"
+
 ##################################
 ## functions                    ##
 ##################################
 
+#
+# decipher the programm arguments
+#
 get_args()
 {
-    while getopts "a:t:r:n:i:c:x:e:bpsq" option
+    while getopts "i:t:r:n:I:c:a:e:bpsq" option
     do
         case $option in
-            a)
+            i)
                 if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
                     JAIL_IP=${OPTARG}
                     echo "IP: ${JAIL_IP}"
@@ -85,7 +90,7 @@ get_args()
                     echo "INFO: invalid IP address for nameserver (${OPTARG}), using default ${NAME_SERVER}"
                 fi
                 ;;
-            i)
+            I)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     PKGS=${OPTARG}
                     echo "Install packages: ${PKGS}"
@@ -99,7 +104,7 @@ get_args()
                     echo "Copying files: ${COPY_FILES}"
                 fi
                 ;;
-            x)
+            a)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     ABI_VERSION=${OPTARG}
                     echo "ABI Version: ${ABI_VERSION}"
@@ -133,53 +138,74 @@ get_args()
     shift $((OPTIND - 1))
 }
 
+#
+# print the usage message
+#
 usage()
 {
-    echo "Usage:"
-    echo ""
-    echo "  $PGM create jailname [-a <ipaddress> -t <timezone> -r <reponame> -n <ipaddress> -i \"list of packages\" -x <ABI_Version> -e \"list of services\" -s -q]"
-    echo "       -a <ipaddress>          : set IP address of Jail"
-    echo ""
-    echo "       -t <timezone>           : set Timezone of Jail"
-    echo "       -n <ipaddress>          : set DNS server IP address of Jail"
-    echo ""
-    echo "       -r <reponame>           : set pkg repository of Jail"
-    echo "       -i \"list of packages\"   : packages to install in the Jail"
-    echo ""
-    echo "       -c \"/dirA/fileA:<JAIL_DIR>/root/,/dirB/fileB:<JAIL_DIR>:/otherdir/fileC\""
-    echo "                               : copy files INTO the Jail"
-    echo "                                 NOTE:"
-    echo "                                 - consider beginning and trailing slashes"
-    echo "                                 - consider the file permissions"
-    echo "                                 - consider whitespace in the parameter string"
-    echo ""
-    echo "       -x <ABI_Version>        : set the ABI Version to match the"
-    echo "                                 packages to be installed to the Jail *)"
-    echo "       -e \"list of services\"   : enable existing or just installed (-p ...) services"
-    echo ""
-    echo "       -s                      : start the Jail after the installation is finished"
-    echo "       -q                      : dont show messages of pkg command"
-    echo ""
-    echo "  $PGM destroy <jailname>"
-    echo ""
-    echo "  $PGM update <jailname> [-s]  : pkg update/upgrade Jail"
-    echo "       -b                      : update the pkgbase system"
-    echo "       -p                      : update the installed packages"
-    echo "       -s                      : restart Jail after update"
-    echo ""
-    echo "  $PGM start <jailname>"
-    echo "  $PGM stop <jailname>"
-    echo "  $PGM restart <jailname>"
-    echo ""
-    echo ""
-    echo "  *) Possible values for ABI_VERSION: (x86, 64 Bit)"
-    echo "    - FreeBSD:11:amd64"
-    echo "    - FreeBSD:12:amd64"
-    echo "    - FreeBSD:13:amd64"
-    echo ""
+    local optfmt="\t%-10s %s\n"
+    exec >&2
+
+    echo   "Usage:"
+    echo   ""
+
+    printf "  $PGM create jailname -i <ipaddress> [-t <timezone> -r <reponame> -n <ipaddress> -I \"list of packages\" -a <ABI_Version> -e \"list of services\" -s -q]\n"
+    printf "$optfmt" "-i <ipaddress>" "set IP address of Jail"
+    printf "$optfmt" "-t <timezone> " "set Timezone of Jail"
+    printf "$optfmt" "-n <ipaddress>" "set DNS server IP address of Jail"
+    echo   ""
+
+    printf "$optfmt" "-r <reponame> " "set pkg repository of Jail"
+    printf "$optfmt" "-I \"list of packages\"" "packages to install in the Jail"
+    echo   ""
+
+    printf "$optfmt" "-c \"/dirA/fileA:<JAIL_DIR>/root/,/dirB/fileB:<JAIL_DIR>:/otherdir/fileC\""
+    printf "$optfmt" "" "copy files INTO the Jail"
+    printf "$optfmt" "" "NOTE:"
+    printf "$optfmt" "" "- consider beginning and trailing slashes"
+    printf "$optfmt" "" "- consider the file permissions"
+    printf "$optfmt" "" "- consider whitespace in the parameter string"
+    echo   ""
+
+    printf "$optfmt" "-a <ABI_Version>" "set the ABI Version to match the"
+    printf "$optfmt" "" "packages to be installed to the Jail *)"
+    printf "$optfmt" "-e \"list of services\"" "enable existing or just installed (-p ...) services"
+    echo   ""
+
+    printf "$optfmt" "-s" "start the Jail after the installation is finished"
+    printf "$optfmt" "-q" "dont show messages of pkg command"
+    echo   ""
+
+    printf "  $PGM destroy <jailname>\n"
+    echo   ""
+
+    printf "  $PGM update <jailname> [-b -p -s]\n"
+    printf "$optfmt" "-b" "update the pkgbase system"
+    printf "$optfmt" "-p" "update the installed packages"
+    printf "$optfmt" "-s" "restart Jail after update"
+    echo   ""
+
+    printf "  $PGM start <jailname>\n"
+    echo   ""
+
+    printf "  $PGM stop <jailname>\n"
+    echo   ""
+
+    printf "  $PGM restart <jailname>\n"
+    echo   ""
+
+    echo   "  *) Possible values for ABI_VERSION: (x86, 64 Bit)"
+    echo   "    - FreeBSD:11:amd64"
+    echo   "    - FreeBSD:12:amd64"
+    echo   "    - FreeBSD:13:amd64"
+    echo   ""
+
     exit $FAILURE
 }
 
+#
+# check if repository configuration exists
+#
 check_repo()
 {
     if [ ! -f /usr/local/etc/pkg/repos/${REPO_NAME}.conf ]; then
@@ -188,6 +214,9 @@ check_repo()
     fi
 }
 
+#
+# check if given jailname already exits in jail.conf
+#
 check_jailconf()
 {
     if grep -e "^${JAIL_NAME} {" ${JAIL_CONF} > /dev/null 2>&1; then
@@ -197,6 +226,9 @@ check_jailconf()
     fi
 }
 
+#
+# check if given jaildataset already exits
+#
 check_dataset()
 {
     if zfs list ${JAIL_DATASET_ROOT}/${JAIL_NAME} > /dev/null 2>&1; then
@@ -206,6 +238,9 @@ check_dataset()
     fi
 }
 
+#
+# create the dataset
+#
 create_dataset()
 {
     echo "create zfs data-set: ${JAIL_DATASET_ROOT}/${JAIL_NAME}"
@@ -213,6 +248,9 @@ create_dataset()
     echo ""
 }
 
+#
+# install the pkgbase pkgs
+#
 install_baseos_pkg()
 {
     # Some additional basesystem pkgs, extend the list if needed
@@ -224,6 +262,9 @@ install_baseos_pkg()
     echo ""
 }
 
+#
+# install additional packages
+#
 install_pkgs()
 {
     if [ ! X"${PKGS}" = "X" ]; then
@@ -245,6 +286,9 @@ install_pkgs()
     fi
 }
 
+#
+# enable given services
+#
 enable_services()
 {
     if [ ! X"${SERVICES}" = "X" ]; then
@@ -261,6 +305,9 @@ enable_services()
     fi
 }
 
+#
+# copy files into the jail
+#
 copy_files()
 {
     if [ ! X"${COPY_FILES}" = "X" ]; then
@@ -284,6 +331,9 @@ copy_files()
     fi
 }
 
+#
+# add the jail configuration to jail.conf
+#
 create_jailconf_entry()
 {
     echo "add jail configuration to ${JAIL_CONF}" | tee -a ${LOG_FILE}
@@ -298,6 +348,9 @@ create_jailconf_entry()
     echo ""
 }
 
+#
+# change some additional settings
+#
 setup_system()
 {
     echo "Setup jail: \"${JAIL_NAME}\"" | tee -a ${LOG_FILE}
@@ -311,6 +364,12 @@ setup_system()
 
     # remove /boot directory, no need in jail
     rm -r /jails/${JAIL_NAME}/boot/
+
+    # remove man pages
+    rm -r /jails/${JAIL_NAME}/usr/share/man/*
+
+    # rmove test files
+    rm -r /jails/${JAIL_NAME}/usr/tests/*
 
     # create directory "/usr/share/keys/pkg/revoked/"
     # or pkg inside the jail wont work.
@@ -348,6 +407,9 @@ setup_system()
     echo ""
 }
 
+#
+# delete the jail dataset
+#
 destroy_dataset()
 {
     if check_dataset; then
@@ -362,6 +424,9 @@ destroy_dataset()
     echo ""
 }
 
+#
+# remove the jail configuration from jail.conf
+#
 destroy_jailconf_entry()
 {
     if check_jailconf; then
@@ -373,31 +438,16 @@ destroy_jailconf_entry()
     echo ""
 }
 
-start_jail()
-{
-
-}
-
-stop_jail()
-{
-
-}
-
-restart_jail()
-{
-
-}
-
-#####################################
-# Main functions                    #
-#####################################
-
+#
+# create a logfile to protocol the script run
+#
 create_log_file()
 {
     LOG_FILE="/tmp/jailer_${ACTION}_${JAIL_NAME}_$(date +%Y%m%d%H%M).log"
     echo "INFO: Logs are written to: ${LOG_FILE}"
     echo ""
 }
+
 
 create_jail()
 {
@@ -515,12 +565,14 @@ case "$ACTION" in
         ;;
     start)
         service jail start ${JAIL_NAME}
+        service pf reload
         ;;
     stop)
         service jail stop ${JAIL_NAME}
         ;;
     restart)
         service jail restart ${JAIL_NAME}
+        service pf reload
         ;;
     *) usage
 esac
