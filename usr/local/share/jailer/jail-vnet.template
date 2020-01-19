@@ -4,9 +4,10 @@
     host.hostuuid = "%%JAIL_UUID%%";
 
     # Network
-    interface = %%JAIL_INTERFACE%%;
-    ip4.addr = %%JAIL_IP%%;
-    allow.raw_sockets;
+    vnet;
+    vnet.interface="e0b_$name";
+    exec.prestart+="jib addm $name %%JAIL_INTERFACE%%";
+    exec.poststop+="jib destroy $name";
 
     # Systemvalues
     devfs_ruleset = 4;

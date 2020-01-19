@@ -12,6 +12,8 @@ fi
 # Program basename
 PGM="${0##*/}" # Program basename
 
+VERSION="1.1"
+
 # Number of arguments
 ARG_NUM=$#
 
@@ -21,7 +23,13 @@ FAILURE=1
 
 # load configuration file
 # default values
-. /usr/local/etc/jailer.conf
+# check for config file                      
+if [ ! -f /usr/local/etc/jailer.conf ]; then 
+    echo "ERROR: config file does not exist!"
+    exit 1                                   
+else
+    . /usr/local/etc/jailer.conf
+fi
 
 # initialise variables
 JAIL_NAME=""
@@ -42,18 +50,44 @@ BASE_UPDATE=false
 PKG_UPDATE=false
 PKG_QUIET=""
 
-FMT="\t%22s: %s\n"
+FMT="\t%${DESCR_ARG_LENGTH}s: %s\n"
+DESCR_ARG_LENGTH=22
+
+VNET=false
+
+# check if jails are enabled                     
+if [ ! $(sysrc -n jail_enable) = "YES" ]; then
+    echo "WARNING: jails service is not enabled."
+fi
+
+# check for template files
+if [ ! -f /usr/local/share/jailer/jail.template ] || [ ! -f /usr/local/share/jailer/jail-vnet.template ] ; then
+    echo "ERROR: template files do not exist!"
+    exit 1
+fi
 
 ##################################
 ## functions                    ##
 ##################################
 
 #
+# check
+#
+checkResult ()
+{
+    if [ $1 -eq 0 ]; then
+        printf "${GREEN}[OK]${COLOR_END}\n"
+    else
+        printf "${RED}[ERROR]${COLOR_END}\n"
+    fi
+}
+
+#
 # decipher the programm arguments
 #
 get_args()
 {
-    while getopts "i:t:r:n:I:c:a:e:bpsq" option
+    while getopts "i:t:r:n:P:c:a:e:vbpsq" option
     do
         case $option in
             i)
@@ -87,10 +121,11 @@ get_args()
                     NAME_SERVER=${OPTARG}
                     echo "Nameserver: ${NAME_SERVER}"
                 else
-                    echo "INFO: invalid IP address for nameserver (${OPTARG}), using default ${NAME_SERVER}"
+                    echo "ERROR: invalid IP address for nameserver (${OPTARG})"
+                    exit 2
                 fi
                 ;;
-            I)
+            P)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     PKGS=${OPTARG}
                     echo "Install packages: ${PKGS}"
@@ -117,6 +152,10 @@ get_args()
                     SERVICES=${OPTARG}
                     echo "Enabling services: ${SERVICES}"
                 fi
+                ;;
+            v)
+                JAIL_TEMPLATE="jail-vnet.template"
+                VNET=true
                 ;;
             b)
                 BASE_UPDATE=true
@@ -148,59 +187,85 @@ usage()
 
     echo   "Usage:"
     echo   ""
-
-    printf "  $PGM create jailname -i <ipaddress> [-t <timezone> -r <reponame> -n <ipaddress> -I \"list of packages\" -a <ABI_Version> -e \"list of services\" -s -q]\n"
-    printf "$optfmt" "-i <ipaddress>" "set IP address of Jail"
-    printf "$optfmt" "-t <timezone> " "set Timezone of Jail"
-    printf "$optfmt" "-n <ipaddress>" "set DNS server IP address of Jail"
+    printf "  ${PGM} create jailname -i <ipaddress> [-t <timezone> -r <reponame> -n <ipaddress> -P \"list of packages\" -a <ABI_Version> -e \"list of services\" -s -q]\n"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-i" "<ipaddress>" "set IP address of Jail"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-t" "<timezone>" "set Timezone of Jail"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-n" "<ipaddress>" "set DNS server IP address of Jail"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-v" "" "create a VNET Jail"
     echo   ""
 
-    printf "$optfmt" "-r <reponame> " "set pkg repository of Jail"
-    printf "$optfmt" "-I \"list of packages\"" "packages to install in the Jail"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-r" "<reponame>" "set pkg repository of Jail"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-P" "\"list of packages\"" "packages to install in the Jail"
     echo   ""
 
-    printf "$optfmt" "-c \"/dirA/fileA:<JAIL_DIR>/root/,/dirB/fileB:<JAIL_DIR>:/otherdir/fileC\""
-    printf "$optfmt" "" "copy files INTO the Jail"
-    printf "$optfmt" "" "NOTE:"
-    printf "$optfmt" "" "- consider beginning and trailing slashes"
-    printf "$optfmt" "" "- consider the file permissions"
-    printf "$optfmt" "" "- consider whitespace in the parameter string"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-c" "\"source_file:target_file(,...)\"" "copy files INTO the Jail"
+    echo   ""
+    printf "\t%s %-${DESCR_ARG_LENGTH}s   %s\n" "" "" "NOTE:"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s   %s\n" "" "" " • use a comma seperated list for multiple copies"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s   %s\n" "" "" " • consider beginning and trailing slashes"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s   %s\n" "" "" " • consider the file permissions"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s   %s\n" "" "" " • consider whitespaces in the parameter string"
     echo   ""
 
-    printf "$optfmt" "-a <ABI_Version>" "set the ABI Version to match the"
-    printf "$optfmt" "" "packages to be installed to the Jail *)"
-    printf "$optfmt" "-e \"list of services\"" "enable existing or just installed (-p ...) services"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-a" "<ABI_Version>" "set the ABI Version to match the packages to be installed to the Jail"
+    echo   ""
+    printf "\t%s %-${DESCR_ARG_LENGTH}s   %s\n" "" "" "NOTE: Possible values for ABI_VERSION"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s   %s\n" "" "" " • FreeBSD:12:amd64"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s   %s\n" "" "" " • FreeBSD:13:amd64"
+    echo ""
+            
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-e" "\"list of services\"" "enable existing or just installed (-P ...) services"
     echo   ""
 
-    printf "$optfmt" "-s" "start the Jail after the installation is finished"
-    printf "$optfmt" "-q" "dont show messages of pkg command"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-s" "" "start the Jail after the installation is finished"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-q" "" "dont show output of pkg"
     echo   ""
 
-    printf "  $PGM destroy <jailname>\n"
+    printf "  ${PGM} destroy <jailname>\n"
     echo   ""
 
-    printf "  $PGM update <jailname> [-b -p -s]\n"
-    printf "$optfmt" "-b" "update the pkgbase system"
-    printf "$optfmt" "-p" "update the installed packages"
-    printf "$optfmt" "-s" "restart Jail after update"
+    printf "  ${PGM} update <jailname> [-b -p -s]\n"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-b" "" "update the pkgbase system"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-p" "" "update the installed packages"
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-s" "" "restart Jail after update"
     echo   ""
 
-    printf "  $PGM start <jailname>\n"
+    printf "  %s %-${DESCR_ARG_LENGTH}s   : %s\n" "${PGM}" "list" "list jail status"
     echo   ""
 
-    printf "  $PGM stop <jailname>\n"
+    printf "  %s %-${DESCR_ARG_LENGTH}s   : %s\n" "${PGM}" "start" "start jail"
     echo   ""
 
-    printf "  $PGM restart <jailname>\n"
+    printf "  %s %-${DESCR_ARG_LENGTH}s   : %s\n" "${PGM}" "stop" "stop jail"
     echo   ""
 
-    echo   "  *) Possible values for ABI_VERSION: (x86, 64 Bit)"
-    echo   "    - FreeBSD:11:amd64"
-    echo   "    - FreeBSD:12:amd64"
-    echo   "    - FreeBSD:13:amd64"
+    printf "  %s %-${DESCR_ARG_LENGTH}s   : %s\n" "${PGM}" "restart" "restart jail"
     echo   ""
 
     exit $FAILURE
+}
+
+#
+# check the jailer setup
+#
+validate_setup()
+{
+    # check if jails are enabled
+    if [ ! $(sysrc -n jails_enable) = "YES" ]; then
+        echo "WARNING: jails service is not enabled." 
+    fi
+
+    # check for config file
+    if [ ! -f /usr/local/etc/jailer.conf ]; then
+        echo "ERROR: config file does not exist!"
+	exit 1
+    fi
+
+    #check for template file
+    if [ ! -f /usr/local/share/jailer/*.template ]; then
+        echo "ERROR: template files do not exist!"
+	exit 1
+    fi
 }
 
 #
@@ -209,7 +274,7 @@ usage()
 check_repo()
 {
     if [ ! -f /usr/local/etc/pkg/repos/${REPO_NAME}.conf ]; then
-        echo "ERROR: Repository ${REPO_NAME} not found."
+        echo "ERROR: no repository ${REPO_NAME} found."
         exit 2
     fi
 }
@@ -243,8 +308,9 @@ check_dataset()
 #
 create_dataset()
 {
-    echo "create zfs data-set: ${JAIL_DATASET_ROOT}/${JAIL_NAME}"
+    echo -n "create zfs data-set: ${JAIL_DATASET_ROOT}/${JAIL_NAME} "
     zfs create -o compression=on ${JAIL_DATASET_ROOT}/${JAIL_NAME}
+    checkResult $?
     echo ""
 }
 
@@ -254,11 +320,24 @@ create_dataset()
 install_baseos_pkg()
 {
     # Some additional basesystem pkgs, extend the list if needed
-    EXTRA_PKGS="FreeBSD-libcasper FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at FreeBSD-dma"
+    case "${ABI_VERSION}" in
+        *12*)
+            # FreeBSD 12
+            CORE_PKGS="FreeBSD-runtime"
+            EXTRA_PKGS="FreeBSD-libcasper FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at FreeBSD-dma"
+            ;;
+        *13*)
+            # FreeBSD 13
+            CORE_PKGS="FreeBSD-utilities"
+            EXTRA_PKGS="FreeBSD-rc FreeBSD-dma FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at"
+            ;;
+        *)
+            ;;
+    esac
 
-    echo "Install FreeBSD Base System pkgs: FreeBSD-runtime + ${EXTRA_PKGS}" | tee -a ${LOG_FILE}
+    echo "Install FreeBSD Base System pkgs: ${CORE_PKGS} + ${EXTRA_PKGS}" | tee -a ${LOG_FILE}
     # Install the base system
-    pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install ${PKG_QUIET} --repository ${REPO_NAME} FreeBSD-runtime ${EXTRA_PKGS} | tee -a ${LOG_FILE}
+    pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install ${PKG_QUIET} --repository ${REPO_NAME} ${CORE_PKGS} ${EXTRA_PKGS} | tee -a ${LOG_FILE}
     echo ""
 }
 
@@ -340,6 +419,7 @@ create_jailconf_entry()
 
     sed \
         -e "s|%%JAIL_NAME%%|${JAIL_NAME}|g" \
+        -e "s|%%JAIL_INTERFACE%%|${JAIL_INTERFACE}|g" \
         -e "s|%%JAIL_UUID%%|${JAIL_UUID}|g" \
         -e "s|%%JAIL_IP%%|${JAIL_IP}|g"     \
         -e "s|%%JAIL_DIR%%|${JAIL_DIR}|g"   \
@@ -362,18 +442,24 @@ setup_system()
     # System
     sysrc -R ${JAIL_DIR} syslogd_flags="-ss"
 
-    # remove /boot directory, no need in jail
-    rm -r /jails/${JAIL_NAME}/boot/
+    # remove /boot directory, not needed in a jail
+    if [ ! X"${JAIL_DIR}" = "X" ] && [ -d ${JAIL_DIR}/boot/ ]; then
+        rm -r ${JAIL_DIR}/boot/
+    fi
 
     # remove man pages
-    rm -r /jails/${JAIL_NAME}/usr/share/man/*
+    if [ ! X"${JAIL_DIR}" = "X" ] && [ -d ${JAIL_DIR}/usr/share/man/ ]; then
+        rm -r ${JAIL_DIR}/usr/share/man/*
+    fi
 
-    # rmove test files
-    rm -r /jails/${JAIL_NAME}/usr/tests/*
+    # remove test files
+    if [ ! X"${JAIL_DIR}" = "X" ] && [ -d ${JAIL_DIR}/usr/tests/ ]; then
+        rm -r ${JAIL_DIR}/usr/tests/*
+    fi
 
     # create directory "/usr/share/keys/pkg/revoked/"
     # or pkg inside the jail wont work.
-    mkdir ${JAIL_DIR}/usr/share/keys/pkg/revoked/
+    #mkdir ${JAIL_DIR}/usr/share/keys/pkg/revoked/
 
     # set timezone in jail
     echo "Setup timezone: ${TIME_ZONE}" | tee -a ${LOG_FILE}
@@ -381,6 +467,11 @@ setup_system()
 
     # Network
     echo "nameserver ${NAME_SERVER}" > ${JAIL_DIR}/etc/resolv.conf
+
+    if [ ${VNET} = "true" ]; then
+        echo "Adding VNET IP ${JAIL_IP}"
+        #sysrc -R ${JAIL_DIR} =${JAIL_IP}
+    fi
 
     # Mailing
     echo "configure dma mailer"
@@ -402,7 +493,9 @@ setup_system()
     fi
 
     # mail configuration
-    mkdir ${JAIL_DIR}/etc/mail/
+    if [ ! -d ${JAIL_DIR}/etc/mail/ ]; then
+        mkdir ${JAIL_DIR}/etc/mail/
+    fi
     cp -a ${JAIL_DIR}/usr/share/examples/dma/mailer.conf ${JAIL_DIR}/etc/mail/
     echo ""
 }
@@ -456,7 +549,7 @@ create_jail()
         exit 2
     fi
 
-    JAIL_DIR="${JAIL_DATASET_ROOT#zroot}/${JAIL_NAME}"
+    JAIL_DIR="$(zfs get -H -o value mountpoint ${JAIL_DATASET_ROOT})/${JAIL_NAME}"
     if check_jailconf; then
         echo "ERROR: $JAIL_NAME already exists in ${JAIL_CONF}."
         exit 2
@@ -470,7 +563,9 @@ create_jail()
         setup_system
 
         service jail start ${JAIL_NAME}
-        service pf reload
+	if [ $(sysrc -n pf_enable) = "YES" ]; then
+            service pf reload
+	fi
 
         # install additional packages
         install_pkgs
@@ -491,7 +586,7 @@ create_jail()
 
 destroy_jail()
 {
-    JAIL_DIR="${JAIL_DATASET_ROOT#zroot}/${JAIL_NAME}"
+    JAIL_DIR="$(zfs get -H -o value mountpoint ${JAIL_DATASET_ROOT})/${JAIL_NAME}"
 
     if ! check_jailconf; then
         echo "ERROR: $JAIL_NAME does not exist."
@@ -509,21 +604,21 @@ destroy_jail()
 
 update_jail()
 {
-    JAIL_DIR="${JAIL_DATASET_ROOT#zroot}/${JAIL_NAME}"
+    JAIL_DIR="$(zfs get -H -o value mountpoint ${JAIL_DATASET_ROOT})/${JAIL_NAME}"
 
     if [ ${BASE_UPDATE} = "true" ]; then
         echo "Updating system"
         echo "---------------"
-        pkg -j ${JAIL_NAME} -o ASSUME_ALWAYS_YES=true update  --repository ${REPO_NAME} ${PKG_QUIET} | tee -a ${LOG_FILE}
-        pkg -j ${JAIL_NAME} -o ASSUME_ALWAYS_YES=true upgrade --repository ${REPO_NAME} ${PKG_QUIET} | tee -a ${LOG_FILE}
+        pkg -j ${JAIL_NAME} -o ABI=${ABI_VERSION} -o ASSUME_ALWAYS_YES=true update  --repository ${REPO_NAME} ${PKG_QUIET} | tee -a ${LOG_FILE}
+        pkg -j ${JAIL_NAME} -o ABI=${ABI_VERSION} -o ASSUME_ALWAYS_YES=true upgrade --repository ${REPO_NAME} ${PKG_QUIET} | tee -a ${LOG_FILE}
         echo ""
     fi
 
     if [ ${PKG_UPDATE} = "true" ]; then
         echo "Updating packages"
         echo "-----------------"
-        pkg -j ${JAIL_NAME} -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD ${PKG_QUIET} | tee -a ${LOG_FILE}
-        pkg -j ${JAIL_NAME} -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD ${PKG_QUIET} | tee -a ${LOG_FILE}
+        pkg -j ${JAIL_NAME} -o ABI=${ABI_VERSION} -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD ${PKG_QUIET} | tee -a ${LOG_FILE}
+        pkg -j ${JAIL_NAME} -o ABI=${ABI_VERSION} -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD ${PKG_QUIET} | tee -a ${LOG_FILE}
         echo ""
     fi
 
@@ -532,15 +627,15 @@ update_jail()
     fi
 }
 
+ACTION="$1"
+JAIL_NAME="$2"
+
 # check for numbers of arguments
 # ACTION and JAILNAME are mandatory
 # exit when less then 2 arguments
-if [ $ARG_NUM -lt 2 ]; then
+if [ $ARG_NUM -lt 2 ] ; then
     usage
 fi
-
-ACTION="$1"
-JAIL_NAME="$2"
 
 case "$ACTION" in
     create)
@@ -563,16 +658,23 @@ case "$ACTION" in
             service jail restart ${JAIL_NAME}
         fi
         ;;
+    list)
+        jls -N
+        ;;
     start)
         service jail start ${JAIL_NAME}
-        service pf reload
+	if [ $(sysrc -n pf_enable) = "YES" ]; then
+            service pf reload
+	fi
         ;;
     stop)
         service jail stop ${JAIL_NAME}
         ;;
     restart)
         service jail restart ${JAIL_NAME}
-        service pf reload
+	if [ $(sysrc -n pf_enable) = "YES" ]; then
+            service pf reload
+	fi
         ;;
     *) usage
 esac
