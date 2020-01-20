@@ -4,8 +4,8 @@
     host.hostuuid = "%%JAIL_UUID%%";
 
     # Network
-    interface = %%JAIL_INTERFACE%%;
-    ip4.addr = %%JAIL_IP%%;
+    interface     = %%JAIL_INTERFACE%%;
+    ip4.addr      = %%JAIL_IP%%;
     allow.raw_sockets;
 
     # Systemvalues
@@ -22,10 +22,10 @@
     exec.timeout=90;
 
     # Pre-/Post-Scripts
-    exec.prestart="logger trying to start jail $name...";
-    exec.poststart="logger jail $name has started";
-    exec.prestop="logger shutting down jail $name";
-    exec.poststop="logger jail $name has shut down";
+    exec.prestart  = "logger trying to start jail ${name}...";
+    exec.poststart = "logger jail ${name} has started";
+    exec.prestop   = "logger shutting down jail ${name}";
+    exec.poststop  = "logger jail ${name} has shut down";
 
     # Start Script
     exec.start  = "/bin/sh /etc/rc";
