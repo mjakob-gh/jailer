@@ -54,6 +54,7 @@ FMT="\t%${DESCR_ARG_LENGTH}s: %s\n"
 DESCR_ARG_LENGTH=22
 
 VNET=false
+INTERFACE_ID=0
 
 # check if jails are enabled                     
 if [ ! $(sysrc -n jail_enable) = "YES" ]; then
@@ -184,10 +185,12 @@ usage()
 {
     local optfmt="\t%-10s %s\n"
     exec >&2
-
+    echo   ""
+    printf "%s Version: %s\n" "${PGM}" "${VERSION}"
+    echo   ""
     echo   "Usage:"
     echo   ""
-    printf "  ${PGM} create jailname -i <ipaddress> [-t <timezone> -r <reponame> -n <ipaddress> -P \"list of packages\" -a <ABI_Version> -e \"list of services\" -s -q]\n"
+    printf "  ${PGM} create jailname -i <ipaddress> [-t <timezone> -r <reponame> -n <ipaddress> -v -P \"list of packages\" -a <ABI_Version> -e \"list of services\" -s -q]\n"
     printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-i" "<ipaddress>" "set IP address of Jail"
     printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-t" "<timezone>" "set Timezone of Jail"
     printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-n" "<ipaddress>" "set DNS server IP address of Jail"
@@ -411,10 +414,23 @@ copy_files()
 }
 
 #
+# get next interface ID
+#
+get_next_interface_id()
+{
+    LAST_ID=$(grep vnet.interface /etc/jail.conf | sed -e 's/[[:space:]]*vnet.interface[[:space:]]*=[[:space:]]*"e//g' -e 's/b_[[:alnum:]]*\";//g' | sort -n | tail -1)
+    NEXT_ID=$(( LAST_ID + 1 ))
+
+    INTERFACE_ID=${NEXT_ID}
+}
+
+#
 # add the jail configuration to jail.conf
 #
 create_jailconf_entry()
 {
+    get_next_interface_id
+
     echo "add jail configuration to ${JAIL_CONF}" | tee -a ${LOG_FILE}
 
     sed \
@@ -423,7 +439,10 @@ create_jailconf_entry()
         -e "s|%%JAIL_UUID%%|${JAIL_UUID}|g" \
         -e "s|%%JAIL_IP%%|${JAIL_IP}|g"     \
         -e "s|%%JAIL_DIR%%|${JAIL_DIR}|g"   \
-         ${TEMPLATE_DIR}/${JAIL_TEMPLATE} >> ${JAIL_CONF}
+        -e "s|%%INTERFACE_ID%%|${INTERFACE_ID}|g" \
+        -e "s|%%BRIDGE%%|${BRIDGE}|g" \
+        -e "s|%%GATEWAY%%|${GATEWAY}|g" \
+        ${TEMPLATE_DIR}/${JAIL_TEMPLATE} >> ${JAIL_CONF}
 
     echo ""
 }
