@@ -5,18 +5,19 @@
 
     # Network
     vnet;
-    vnet.interface = "e%%INTERFACE_ID%%b_%%JAIL_NAME%%";
+    vnet.interface = "epair%%INTERFACE_ID%%b";
 
     exec.prestart += "ifconfig epair%%INTERFACE_ID%% create up";
-    exec.prestart += "ifconfig epair%%INTERFACE_ID%%a name e%%INTERFACE_ID%%a_%%JAIL_NAME%%";
-    exec.prestart += "ifconfig epair%%INTERFACE_ID%%b name e%%INTERFACE_ID%%b_%%JAIL_NAME%%";
-    exec.prestart += "ifconfig %%BRIDGE%% addm e%%INTERFACE_ID%%a_%%JAIL_NAME%%";
+    exec.prestart += "ifconfig epair%%INTERFACE_ID%%a description \"IFID=%%INTERFACE_ID%% JAIL=%%JAIL_NAME%%\"";
+    exec.prestart += "ifconfig %%BRIDGE%% addm epair%%INTERFACE_ID%%a";
 
-    command  = "ifconfig e%%INTERFACE_ID%%b_%%JAIL_NAME%% inet %%JAIL_IP%%/24";
+    command  = "ifconfig epair%%INTERFACE_ID%%b inet %%JAIL_IP%%/24";
     command += "route -n add -inet default %%GATEWAY%%";
 
-    exec.poststop += "ifconfig %%BRIDGE%% deletem e%%INTERFACE_ID%%a_%%JAIL_NAME%%";
-    exec.poststop += "ifconfig e%%INTERFACE_ID%%a_%%JAIL_NAME%% destroy";
+    exec.prestop   = "ifconfig epair%%INTERFACE_ID%%b -vnet %%JAIL_NAME%%";
+
+    exec.poststop += "ifconfig %%BRIDGE%% deletem epair%%INTERFACE_ID%%a";
+    exec.poststop += "ifconfig epair%%INTERFACE_ID%%a destroy";
 
     # Systemvalues
     devfs_ruleset = 4;
@@ -32,10 +33,10 @@
     exec.timeout = 90;
 
     # Pre-/Post-Scripts
-    exec.prestart  = "logger trying to start jail $name...";
-    exec.poststart = "logger jail $name has started";
-    exec.prestop   = "logger shutting down jail $name";
-    exec.poststop  = "logger jail $name has shut down";
+    exec.prestart  += "logger trying to start jail $name...";
+    exec.poststart += "logger jail $name has started";
+    exec.prestop   += "logger shutting down jail $name";
+    exec.poststop  += "logger jail $name has shut down";
 
     # Start Script
     exec.start  = "/bin/sh /etc/rc";
