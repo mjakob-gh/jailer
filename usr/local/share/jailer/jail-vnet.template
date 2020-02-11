@@ -33,12 +33,13 @@
     exec.timeout = 90;
 
     # Pre-/Post-Scripts
-    exec.prestart  += "logger trying to start jail $name...";
-    exec.poststart += "logger jail $name has started";
-    exec.prestop   += "logger shutting down jail $name";
-    exec.poststop  += "logger jail $name has shut down";
+    exec.prestart  += "logger trying to start jail %%JAIL_NAME%%...";
+    exec.poststart += "logger jail %%JAIL_NAME%% has started";
+    exec.prestop   += "logger shutting down jail %%JAIL_NAME%%";
+    exec.poststop  += "logger jail %%JAIL_NAME%% has shut down";
 
     # Start Script
     exec.start  = "/bin/sh /etc/rc";
     exec.stop   = "/bin/sh /etc/rc.shutdown";
 }
+

@@ -2,7 +2,7 @@
 
 if [ "$( id -u )" -ne 0 ]; then
    echo "Must run as root!" >&2
-   exit $FAILURE
+   exit "${FAILURE}"
 fi
 
 ########################
@@ -12,7 +12,7 @@ fi
 # Program basename
 PGM="${0##*/}" # Program basename
 
-VERSION="1.1"
+VERSION="1.2"
 
 # Number of arguments
 ARG_NUM=$#
@@ -50,14 +50,13 @@ BASE_UPDATE=false
 PKG_UPDATE=false
 PKG_QUIET=""
 
-FMT="\t%${DESCR_ARG_LENGTH}s: %s\n"
 DESCR_ARG_LENGTH=22
 
 VNET=false
 INTERFACE_ID=0
 
 # check if jails are enabled                     
-if [ ! $(sysrc -n jail_enable) = "YES" ]; then
+if [ ! "$(sysrc -n jail_enable)" = "YES" ]; then
     echo "WARNING: jails service is not enabled."
 fi
 
@@ -76,7 +75,7 @@ fi
 #
 checkResult ()
 {
-    if [ $1 -eq 0 ]; then
+    if [ "$1" -eq 0 ]; then
         printf "${GREEN}[OK]${COLOR_END}\n"
     else
         printf "${RED}[ERROR]${COLOR_END}\n"
@@ -183,7 +182,6 @@ get_args()
 #
 usage()
 {
-    local optfmt="\t%-10s %s\n"
     exec >&2
     echo   ""
     printf "%s Version: %s\n" "${PGM}" "${VERSION}"
@@ -254,7 +252,7 @@ usage()
 validate_setup()
 {
     # check if jails are enabled
-    if [ ! $(sysrc -n jails_enable) = "YES" ]; then
+    if [ ! "$(sysrc -n jails_enable)" = "YES" ]; then
         echo "WARNING: jails service is not enabled." 
     fi
 
@@ -265,10 +263,10 @@ validate_setup()
     fi
 
     #check for template file
-    if [ ! -f /usr/local/share/jailer/*.template ]; then
-        echo "ERROR: template files do not exist!"
-	exit 1
-    fi
+    #if [ ! -f /usr/local/share/jailer/*.template ]; then
+    #    echo "ERROR: template files do not exist!"
+    #    exit 1
+    #fi
 }
 
 #
@@ -276,7 +274,7 @@ validate_setup()
 #
 check_repo()
 {
-    if [ ! -f /usr/local/etc/pkg/repos/${REPO_NAME}.conf ]; then
+    if [ ! -f "/usr/local/etc/pkg/repos/${REPO_NAME}.conf" ]; then
         echo "ERROR: no repository ${REPO_NAME} found."
         exit 2
     fi
@@ -299,7 +297,7 @@ check_jailconf()
 #
 check_dataset()
 {
-    if zfs list ${JAIL_DATASET_ROOT}/${JAIL_NAME} > /dev/null 2>&1; then
+    if zfs list "${JAIL_DATASET_ROOT}/${JAIL_NAME}" > /dev/null 2>&1; then
         return $SUCCESS
     else
         return $FAILURE
@@ -312,7 +310,7 @@ check_dataset()
 create_dataset()
 {
     echo -n "create zfs data-set: ${JAIL_DATASET_ROOT}/${JAIL_NAME} "
-    zfs create -o compression=on ${JAIL_DATASET_ROOT}/${JAIL_NAME}
+    zfs create -o compression=on "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
     checkResult $?
     echo ""
 }
@@ -338,9 +336,12 @@ install_baseos_pkg()
             ;;
     esac
 
-    echo "Install FreeBSD Base System pkgs: ${CORE_PKGS} + ${EXTRA_PKGS}" | tee -a ${LOG_FILE}
+    echo "Install FreeBSD Base System pkgs: ${CORE_PKGS} + ${EXTRA_PKGS}" | tee -a "${LOG_FILE}"
     # Install the base system
-    pkg --rootdir ${JAIL_DIR} -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install ${PKG_QUIET} --repository ${REPO_NAME} ${CORE_PKGS} ${EXTRA_PKGS} | tee -a ${LOG_FILE}
+    # shellcheck disable=SC2086
+    set -o pipefail
+    pkg --rootdir "${JAIL_DIR}" -o ASSUME_ALWAYS_YES=true -o ABI="${ABI_VERSION}" install ${PKG_QUIET} --repository "${REPO_NAME}" ${CORE_PKGS} ${EXTRA_PKGS} | tee -a "${LOG_FILE}"
+    set +o pipefail
     echo ""
 }
 
@@ -353,17 +354,20 @@ install_pkgs()
         echo "Install pkgs:"
         echo "-------------"
         # install the pkg package
-        pkg --rootdir ${JAIL_DIR} -R ${JAIL_DIR}/etc/pkg/ -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install ${PKG_QUIET} pkg | tee -a ${LOG_FILE}
+        set -o pipefail
+        pkg --rootdir "${JAIL_DIR}" -R "${JAIL_DIR}/etc/pkg/" -o ASSUME_ALWAYS_YES=true -o ABI="${ABI_VERSION}" install ${PKG_QUIET} pkg | tee -a "${LOG_FILE}"
+        set +o pipefail
         echo -n "pkg "
         for PKG in ${PKGS}
-        {
+        do
             echo -n "${PKG} "
-            #pkg --rootdir ${JAIL_DIR} -R ${JAIL_DIR}/etc/pkg/ -o ASSUME_ALWAYS_YES=true -o ABI=${ABI_VERSION} install ${PKG} | tee -a ${LOG_FILE}
-            pkg -j ${JAIL_NAME} -o ASSUME_ALWAYS_YES=true install ${PKG_QUIET} ${PKG} | tee -a ${LOG_FILE}
+            set -o pipefail
+            pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true install ${PKG_QUIET} "${PKG}" | tee -a "${LOG_FILE}"
             if [ $? -lt 0 ]; then
                  echo "ERROR: installation of ${PKG} failed"
             fi
-        }
+            set +o pipefail
+        done
         echo ""
     fi
 }
@@ -378,10 +382,10 @@ enable_services()
         echo "------------------"
         (
             for SERVICE in ${SERVICES}
-            {
+            do
                 #sysrc -R ${JAIL_DIR} "${SERVICE}_enable=YES"
-                service -j ${JAIL_NAME} ${SERVICE} enable
-            }
+                service -j "${JAIL_NAME}" "${SERVICE}" enable
+            done
         ) | column -t
         echo ""
     fi
@@ -401,12 +405,12 @@ copy_files()
 
         (
             for COPY_FILE in $COPY_FILES
-            {
+            do
                 SRC=${COPY_FILE%%:*}
                 DST=${COPY_FILE##*:}
                 echo "${SRC} -> ${JAIL_DIR}/${DST}"
                 cp -a "${SRC}" "${JAIL_DIR}/${DST}"
-            }
+            done
         ) | column -t
         IFS=$OLDIFS
         echo ""
@@ -435,7 +439,7 @@ create_jailconf_entry()
 {
     get_next_interface_id
 
-    echo "add jail configuration to ${JAIL_CONF}" | tee -a ${LOG_FILE}
+    echo "add jail configuration to ${JAIL_CONF}" | tee -a "${LOG_FILE}"
 
     sed \
         -e "s|%%JAIL_NAME%%|${JAIL_NAME}|g" \
@@ -446,7 +450,7 @@ create_jailconf_entry()
         -e "s|%%INTERFACE_ID%%|${INTERFACE_ID}|g" \
         -e "s|%%BRIDGE%%|${BRIDGE}|g" \
         -e "s|%%GATEWAY%%|${GATEWAY}|g" \
-        ${TEMPLATE_DIR}/${JAIL_TEMPLATE} >> ${JAIL_CONF}
+        "${TEMPLATE_DIR}/${JAIL_TEMPLATE}" >> "${JAIL_CONF}"
 
     echo ""
 }
@@ -456,28 +460,28 @@ create_jailconf_entry()
 #
 setup_system()
 {
-    echo "Setup jail: \"${JAIL_NAME}\"" | tee -a ${LOG_FILE}
+    echo "Setup jail: \"${JAIL_NAME}\"" | tee -a "${LOG_FILE}"
     echo "----------------------------"
     # add some default values for /etc/rc.conf
     # but first create the file, so sysrc wont show an error
-    touch ${JAIL_DIR}/etc/rc.conf
+    touch "${JAIL_DIR}/etc/rc.conf"
 
     # System
-    sysrc -R ${JAIL_DIR} syslogd_flags="-ss"
+    sysrc -R "${JAIL_DIR}" syslogd_flags="-ss"
 
     # remove /boot directory, not needed in a jail
-    if [ ! X"${JAIL_DIR}" = "X" ] && [ -d ${JAIL_DIR}/boot/ ]; then
-        rm -r ${JAIL_DIR}/boot/
+    if [ ! X"${JAIL_DIR}" = "X" ] && [ -d "${JAIL_DIR}/boot/" ]; then
+        rm -r "${JAIL_DIR:?}/boot/"
     fi
 
     # remove man pages
-    if [ ! X"${JAIL_DIR}" = "X" ] && [ -d ${JAIL_DIR}/usr/share/man/ ]; then
-        rm -r ${JAIL_DIR}/usr/share/man/*
+    if [ ! X"${JAIL_DIR}" = "X" ] && [ -d "${JAIL_DIR}/usr/share/man/" ]; then
+        rm -r "${JAIL_DIR:?}/usr/share/man/*"
     fi
 
     # remove test files
-    if [ ! X"${JAIL_DIR}" = "X" ] && [ -d ${JAIL_DIR}/usr/tests/ ]; then
-        rm -r ${JAIL_DIR}/usr/tests/*
+    if [ ! X"${JAIL_DIR}" = "X" ] && [ -d "${JAIL_DIR}/usr/tests/" ]; then
+        rm -r "${JAIL_DIR:?}/usr/tests/*"
     fi
 
     # create directory "/usr/share/keys/pkg/revoked/"
@@ -485,11 +489,11 @@ setup_system()
     #mkdir ${JAIL_DIR}/usr/share/keys/pkg/revoked/
 
     # set timezone in jail
-    echo "Setup timezone: ${TIME_ZONE}" | tee -a ${LOG_FILE}
-    tzsetup -sC ${JAIL_DIR} "${TIME_ZONE}"
+    echo "Setup timezone: ${TIME_ZONE}" | tee -a "${LOG_FILE}"
+    tzsetup -sC "${JAIL_DIR}" "${TIME_ZONE}"
 
     # Network
-    echo "nameserver ${NAME_SERVER}" > ${JAIL_DIR}/etc/resolv.conf
+    echo "nameserver ${NAME_SERVER}" > "${JAIL_DIR}/etc/resolv.conf"
 
     if [ ${VNET} = "true" ]; then
         echo "Adding VNET IP ${JAIL_IP}"
@@ -499,27 +503,27 @@ setup_system()
     # Mailing
     echo "configure dma mailer"
     (
-        sysrc -R ${JAIL_DIR} sendmail_enable=NO
-        sysrc -R ${JAIL_DIR} sendmail_submit_enable=NO
-        sysrc -R ${JAIL_DIR} sendmail_outbound_enable=NO
-        sysrc -R ${JAIL_DIR} sendmail_msp_queue_enable=NO
+        sysrc -R "${JAIL_DIR}" sendmail_enable=NO
+        sysrc -R "${JAIL_DIR}" sendmail_submit_enable=NO
+        sysrc -R "${JAIL_DIR}" sendmail_outbound_enable=NO
+        sysrc -R "${JAIL_DIR}" sendmail_msp_queue_enable=NO
     ) | column -t
 
     # setup repository
-    mkdir -p ${JAIL_DIR}/usr/local/etc/pkg/repos
-    echo "FreeBSD: { enabled: yes }" > ${JAIL_DIR}/usr/local/etc/pkg/repos/FreeBSD.conf
+    mkdir -p "${JAIL_DIR}/usr/local/etc/pkg/repos"
+    echo "FreeBSD: { enabled: yes }" > "${JAIL_DIR}/usr/local/etc/pkg/repos/FreeBSD.conf"
 
-    if [ -f ${TEMPLATE_DIR}/FreeBSD-base.conf ]; then
-        cp -a ${TEMPLATE_DIR}/FreeBSD-base.conf ${JAIL_DIR}/usr/local/etc/pkg/repos
+    if [ -f "${TEMPLATE_DIR}/FreeBSD-base.conf" ]; then
+        cp -a "${TEMPLATE_DIR}/FreeBSD-base.conf" "${JAIL_DIR}/usr/local/etc/pkg/repos"
     else
         echo "WARNING: No pkgbase repo \"FreeBSD-base.conf\" found, please check \"${TEMPLATE_DIR}\""
     fi
 
     # mail configuration
-    if [ ! -d ${JAIL_DIR}/etc/mail/ ]; then
-        mkdir ${JAIL_DIR}/etc/mail/
+    if [ ! -d "${JAIL_DIR}/etc/mail/" ]; then
+        mkdir "${JAIL_DIR}/etc/mail/"
     fi
-    cp -a ${JAIL_DIR}/usr/share/examples/dma/mailer.conf ${JAIL_DIR}/etc/mail/
+    cp -a "${JAIL_DIR}/usr/share/examples/dma/mailer.conf" "${JAIL_DIR}/etc/mail/"
     echo ""
 }
 
@@ -529,11 +533,11 @@ setup_system()
 destroy_dataset()
 {
     if check_dataset; then
-        echo "Deleting dataset: ${JAIL_DATASET_ROOT}/${JAIL_NAME}" | tee -a ${LOG_FILE}
+        echo "Deleting dataset: ${JAIL_DATASET_ROOT}/${JAIL_NAME}" | tee -a "${LOG_FILE}"
         # forcibly unmount the dataset to prevent problems
         # zfs "destroying" the dataset
-        umount -f ${JAIL_DIR}
-        zfs destroy ${JAIL_DATASET_ROOT}/${JAIL_NAME}
+        umount -f "${JAIL_DIR}"
+        zfs destroy "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
     else
         echo "ERROR: no dataset ${JAIL_DATASET_ROOT}/${JAIL_NAME}"
     fi
@@ -547,7 +551,7 @@ destroy_jailconf_entry()
 {
     if check_jailconf; then
         echo "Deleting entry: ${JAIL_NAME}"
-        sed  -i '' "/${JAIL_NAME} {/,/}/d" ${JAIL_CONF}
+        sed  -i '' "/${JAIL_NAME}[[:space:]]*{/,/^[[:space:]]*}[[:space:]]*$/d" "${JAIL_CONF}"
     else
         echo "ERROR: no entry ${JAIL_NAME} in \"${JAIL_CONF}\""
     fi
@@ -586,7 +590,7 @@ create_jail()
         setup_system
 
         service jail start ${JAIL_NAME}
-	if [ $(sysrc -n pf_enable) = "YES" ]; then
+	if [ "$(sysrc -n pf_enable)" = "YES" ]; then
             service pf reload
 	fi
 
@@ -595,14 +599,14 @@ create_jail()
         # enable services specified in -e argument
         enable_services
 
-        service jail stop ${JAIL_NAME}
+        service jail stop "${JAIL_NAME}"
 
         # copy files into the jail specified in -c argument
         copy_files
 
         # start the jail when -s argument is set
         if [ ${AUTO_START} = "true" ]; then
-            service jail start ${JAIL_NAME}
+            service jail start "${JAIL_NAME}"
         fi
     fi
 }
@@ -618,7 +622,7 @@ destroy_jail()
         echo "ERROR: dataset ${JAIL_DATASET_ROOT}/${JAIL_NAME} does not exist."
         exit 2
     else
-        service jail stop ${JAIL_NAME}
+        service jail stop "${JAIL_NAME}"
         destroy_jailconf_entry
         destroy_dataset
     fi
@@ -629,19 +633,23 @@ update_jail()
 {
     JAIL_DIR="$(zfs get -H -o value mountpoint ${JAIL_DATASET_ROOT})/${JAIL_NAME}"
 
-    if [ ${BASE_UPDATE} = "true" ]; then
+    if [ "${BASE_UPDATE}" = "true" ]; then
         echo "Updating system"
         echo "---------------"
-        pkg -j ${JAIL_NAME} -o ABI=${ABI_VERSION} -o ASSUME_ALWAYS_YES=true update  --repository ${REPO_NAME} ${PKG_QUIET} | tee -a ${LOG_FILE}
-        pkg -j ${JAIL_NAME} -o ABI=${ABI_VERSION} -o ASSUME_ALWAYS_YES=true upgrade --repository ${REPO_NAME} ${PKG_QUIET} | tee -a ${LOG_FILE}
+        set -o pipefail
+        pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true update  --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true upgrade --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        set +o pipefail
         echo ""
     fi
 
     if [ ${PKG_UPDATE} = "true" ]; then
         echo "Updating packages"
         echo "-----------------"
-        pkg -j ${JAIL_NAME} -o ABI=${ABI_VERSION} -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD ${PKG_QUIET} | tee -a ${LOG_FILE}
-        pkg -j ${JAIL_NAME} -o ABI=${ABI_VERSION} -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD ${PKG_QUIET} | tee -a ${LOG_FILE}
+        set -o pipefail
+        pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        set +o pipefail
         echo ""
     fi
 
@@ -677,25 +685,25 @@ case "$ACTION" in
         shift 2
         get_args "$@"
         update_jail
-        if [ ${AUTO_START} = "true" ]; then
-            service jail restart ${JAIL_NAME}
+        if [ "${AUTO_START}" = "true" ]; then
+            service jail restart "${JAIL_NAME}"
         fi
         ;;
     list)
         jls -N
         ;;
     start)
-        service jail start ${JAIL_NAME}
-	if [ $(sysrc -n pf_enable) = "YES" ]; then
+        service jail start "${JAIL_NAME}"
+	if [ "$(sysrc -n pf_enable)" = "YES" ]; then
             service pf reload
 	fi
         ;;
     stop)
-        service jail stop ${JAIL_NAME}
+        service jail stop "${JAIL_NAME}"
         ;;
     restart)
-        service jail restart ${JAIL_NAME}
-	if [ $(sysrc -n pf_enable) = "YES" ]; then
+        service jail restart "${JAIL_NAME}"
+	if [ "$(sysrc -n pf_enable)" = "YES" ]; then
             service pf reload
 	fi
         ;;
