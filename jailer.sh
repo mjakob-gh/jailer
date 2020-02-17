@@ -476,12 +476,12 @@ setup_system()
 
     # remove man pages
     if [ ! X"${JAIL_DIR}" = "X" ] && [ -d "${JAIL_DIR}/usr/share/man/" ]; then
-        rm -r "${JAIL_DIR:?}/usr/share/man/*"
+        rm -r "${JAIL_DIR:?}"/usr/share/man/*
     fi
 
     # remove test files
     if [ ! X"${JAIL_DIR}" = "X" ] && [ -d "${JAIL_DIR}/usr/tests/" ]; then
-        rm -r "${JAIL_DIR:?}/usr/tests/*"
+        rm -r "${JAIL_DIR:?}"/usr/tests/*
     fi
 
     # create directory "/usr/share/keys/pkg/revoked/"
@@ -684,6 +684,7 @@ case "$ACTION" in
     update)
         shift 2
         get_args "$@"
+        create_log_file
         update_jail
         if [ "${AUTO_START}" = "true" ]; then
             service jail restart "${JAIL_NAME}"
