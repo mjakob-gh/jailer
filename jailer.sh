@@ -423,7 +423,7 @@ copy_files()
 get_next_interface_id()
 {
     #LAST_ID=$(gt.interface /etc/jail.conf | sed -e 's/[[:space:]]*vnet.interface[[:space:]]*=[[:space:]]*"e//g' -e 's/b_[[:alnum:]]*\";//g' | sort -n | tail -1)
-    LAST_ID=$(ifconfig | awk '/description/{gsub("IFID=","",$2); print $2}' | sort -n | tail -1)
+    LAST_ID=$(ifconfig | awk '/IFID/{gsub("IFID=","",$2); print $2}' | sort -n | tail -1)
     if [ ! X"${LAST_ID}" = "X" ]; then
         NEXT_ID=$(( LAST_ID + 1 ))
         INTERFACE_ID=${NEXT_ID}
