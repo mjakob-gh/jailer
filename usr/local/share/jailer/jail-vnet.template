@@ -8,7 +8,7 @@
     vnet.interface = "epair%%INTERFACE_ID%%b";
 
     exec.prestart += "ifconfig epair%%INTERFACE_ID%% create up";
-    exec.prestart += "ifconfig epair%%INTERFACE_ID%%a description \"IFID=%%INTERFACE_ID%% JAIL=%%JAIL_NAME%%\"";
+    exec.prestart += "ifconfig epair%%INTERFACE_ID%%a description 'IFID=%%INTERFACE_ID%% JAIL=%%JAIL_NAME%%'";
     exec.prestart += "ifconfig %%BRIDGE%% addm epair%%INTERFACE_ID%%a";
 
     command  = "ifconfig epair%%INTERFACE_ID%%b inet %%JAIL_IP%%/24";
