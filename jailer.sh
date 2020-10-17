@@ -21,6 +21,14 @@ ARG_NUM=$#
 SUCCESS=0
 FAILURE=1
 
+# Create zfs pools with/without compression
+# VALUES: "on" or "off"
+# DEFAULT: "on"
+ZFS_COMPRESSION=on
+
+# Install the pkg tool at jail creation
+INSTALL_PKGTOOL="YES"
+
 # load configuration file
 # default values
 # check for config file                      
@@ -53,11 +61,12 @@ PKG_QUIET=""
 DESCR_ARG_LENGTH=22
 
 VNET=false
+MINIJAIL=false
 INTERFACE_ID=0
 
 # check if jails are enabled                     
 if [ ! "$(sysrc -n jail_enable)" = "YES" ]; then
-    echo "WARNING: jails service is not enabled."
+    echo "WARNING: jail service is not enabled."
 fi
 
 # check for template files
@@ -87,7 +96,7 @@ checkResult ()
 #
 get_args()
 {
-    while getopts "i:t:r:n:P:c:a:e:vbpsq" option
+    while getopts "i:t:r:n:P:c:a:e:mvbpsq" option
     do
         case $option in
             i)
@@ -115,6 +124,9 @@ get_args()
                 else
                     echo "INFO: no repository specified, using default ${REPO_NAME}."
                 fi
+                ;;
+            m)
+                MINIJAIL=true
                 ;;
             n)
                 if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
@@ -209,6 +221,9 @@ usage()
     echo   ""
 
     printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-a" "<ABI_Version>" "set the ABI Version to match the packages to be installed to the Jail"
+    echo   ""
+
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-m" "" "use minijail package"
     echo   ""
     printf "\t%s %-${DESCR_ARG_LENGTH}s   %s\n" "" "" "NOTE: Possible values for ABI_VERSION"
     printf "\t%s %-${DESCR_ARG_LENGTH}s   %s\n" "" "" " • FreeBSD:12:amd64"
@@ -310,7 +325,7 @@ check_dataset()
 create_dataset()
 {
     echo -n "create zfs data-set: ${JAIL_DATASET_ROOT}/${JAIL_NAME} "
-    zfs create -o compression=on "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
+    zfs create -o compression=${ZFS_COMPRESSION} "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
     checkResult $?
     echo ""
 }
@@ -320,29 +335,53 @@ create_dataset()
 #
 install_baseos_pkg()
 {
-    # Some additional basesystem pkgs, extend the list if needed
-    case "${ABI_VERSION}" in
-        *12*)
-            # FreeBSD 12
-            CORE_PKGS="FreeBSD-runtime"
-            EXTRA_PKGS="FreeBSD-libcasper FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at FreeBSD-dma"
-            ;;
-        *13*)
-            # FreeBSD 13
-            CORE_PKGS="FreeBSD-utilities"
-            EXTRA_PKGS="FreeBSD-rc FreeBSD-dma FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at"
-            ;;
-        *)
-            ;;
-    esac
+    if [ $MINIJAIL = "true" ]; then
+        REPO_NAME="FreeBSD-jailpkg"
+        CORE_PKGS="FreeBSD-jailpkg"
+        EXTRA_PKGS=""
+    else
+        # EXTRA_PKGS: Some additional basesystem pkgs, extend the list if needed
+        case "${ABI_VERSION}" in
+            *12*)
+                # FreeBSD 12
+                CORE_PKGS="FreeBSD-runtime"
+                EXTRA_PKGS="FreeBSD-libcasper FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at FreeBSD-dma"
+                ;;
+            *13*)
+                # FreeBSD 13
+                CORE_PKGS="FreeBSD-utilities"
+                EXTRA_PKGS="FreeBSD-rc FreeBSD-dma FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at"
+                ;;
+            *)
+                echo "ERROR: invalid OS Version detectet: ${ABI_VERSION}"
+                exit 1
+                ;;
+        esac
+    fi
 
     echo "Install FreeBSD Base System pkgs: ${CORE_PKGS} + ${EXTRA_PKGS}" | tee -a "${LOG_FILE}"
     # Install the base system
     # shellcheck disable=SC2086
     set -o pipefail
     pkg --rootdir "${JAIL_DIR}" -o ASSUME_ALWAYS_YES=true -o ABI="${ABI_VERSION}" install ${PKG_QUIET} --repository "${REPO_NAME}" ${CORE_PKGS} ${EXTRA_PKGS} | tee -a "${LOG_FILE}"
+    if [ $? -lt 0 ]; then
+        echo "ERROR: pkgbase ${PKG} failed"
+        exit 2
+    fi
     set +o pipefail
     echo ""
+}
+
+# 
+# install pkg programm
+#
+install_pkgtool()
+{
+    # install the pkg package
+    set -o pipefail
+    pkg --rootdir "${JAIL_DIR}" -R "${JAIL_DIR}/etc/pkg/" -o ASSUME_ALWAYS_YES=true -o ABI="${ABI_VERSION}" install ${PKG_QUIET} pkg | tee -a "${LOG_FILE}"
+    set +o pipefail
+    echo -n "pkg "
 }
 
 #
@@ -353,11 +392,10 @@ install_pkgs()
     if [ ! X"${PKGS}" = "X" ]; then
         echo "Install pkgs:"
         echo "-------------"
+
         # install the pkg package
-        set -o pipefail
-        pkg --rootdir "${JAIL_DIR}" -R "${JAIL_DIR}/etc/pkg/" -o ASSUME_ALWAYS_YES=true -o ABI="${ABI_VERSION}" install ${PKG_QUIET} pkg | tee -a "${LOG_FILE}"
-        set +o pipefail
-        echo -n "pkg "
+        install_pkgtool
+
         for PKG in ${PKGS}
         do
             echo -n "${PKG} "
@@ -423,7 +461,7 @@ copy_files()
 get_next_interface_id()
 {
     #LAST_ID=$(gt.interface /etc/jail.conf | sed -e 's/[[:space:]]*vnet.interface[[:space:]]*=[[:space:]]*"e//g' -e 's/b_[[:alnum:]]*\";//g' | sort -n | tail -1)
-    LAST_ID=$(ifconfig | awk '/description/{gsub("IFID=","",$2); print $2}' | sort -n | tail -1)
+    LAST_ID=$(ifconfig | awk '/IFID/{gsub("IFID=","",$2); print $2}' | sort -n | tail -1)
     if [ ! X"${LAST_ID}" = "X" ]; then
         NEXT_ID=$(( LAST_ID + 1 ))
         INTERFACE_ID=${NEXT_ID}
@@ -442,14 +480,14 @@ create_jailconf_entry()
     echo "add jail configuration to ${JAIL_CONF}" | tee -a "${LOG_FILE}"
 
     sed \
-        -e "s|%%JAIL_NAME%%|${JAIL_NAME}|g" \
+        -e "s|%%JAIL_NAME%%|${JAIL_NAME}|g"           \
         -e "s|%%JAIL_INTERFACE%%|${JAIL_INTERFACE}|g" \
-        -e "s|%%JAIL_UUID%%|${JAIL_UUID}|g" \
-        -e "s|%%JAIL_IP%%|${JAIL_IP}|g"     \
-        -e "s|%%JAIL_DIR%%|${JAIL_DIR}|g"   \
-        -e "s|%%INTERFACE_ID%%|${INTERFACE_ID}|g" \
-        -e "s|%%BRIDGE%%|${BRIDGE}|g" \
-        -e "s|%%GATEWAY%%|${GATEWAY}|g" \
+        -e "s|%%JAIL_UUID%%|${JAIL_UUID}|g"           \
+        -e "s|%%JAIL_IP%%|${JAIL_IP}|g"               \
+        -e "s|%%JAIL_DIR%%|${JAIL_DIR}|g"             \
+        -e "s|%%INTERFACE_ID%%|${INTERFACE_ID}|g"     \
+        -e "s|%%BRIDGE%%|${BRIDGE}|g"                 \
+        -e "s|%%GATEWAY%%|${GATEWAY}|g"               \
         "${TEMPLATE_DIR}/${JAIL_TEMPLATE}" >> "${JAIL_CONF}"
 
     echo ""
@@ -523,7 +561,9 @@ setup_system()
     if [ ! -d "${JAIL_DIR}/etc/mail/" ]; then
         mkdir "${JAIL_DIR}/etc/mail/"
     fi
-    cp -a "${JAIL_DIR}/usr/share/examples/dma/mailer.conf" "${JAIL_DIR}/etc/mail/"
+    #cp -a "${JAIL_DIR}/usr/share/examples/dma/mailer.conf" "${JAIL_DIR}/etc/mail/"
+    echo "sendmail  /usr/libexec/dma" >  ${JAIL_DIR}/etc/mail/mailer.conf
+    echo "mailq     /usr/libexec/dma" >> ${JAIL_DIR}/etc/mail/mailer.conf
     echo ""
 }
 
@@ -551,7 +591,7 @@ destroy_jailconf_entry()
 {
     if check_jailconf; then
         echo "Deleting entry: ${JAIL_NAME}"
-        sed  -i '' "/${JAIL_NAME}[[:space:]]*{/,/^[[:space:]]*}[[:space:]]*$/d" "${JAIL_CONF}"
+        sed  -i '' "/^${JAIL_NAME}[[:space:]]*{/,/^[[:space:]]*}[[:space:]]*$/d" "${JAIL_CONF}"
     else
         echo "ERROR: no entry ${JAIL_NAME} in \"${JAIL_CONF}\""
     fi
@@ -572,7 +612,7 @@ create_log_file()
 create_jail()
 {
     if [ X"${JAIL_IP}" = "X" ]; then
-        echo "ERROR: no ip adresse given (-a)"
+        echo "ERROR: no ip adresse given (-i)"
         exit 2
     fi
 
@@ -588,6 +628,10 @@ create_jail()
         create_jailconf_entry
         install_baseos_pkg
         setup_system
+
+        if [ "${INSTALL_PKGTOOL}" = "YES" ]; then
+            install_pkgtool
+        fi
 
         service jail start ${JAIL_NAME}
 	if [ "$(sysrc -n pf_enable)" = "YES" ]; then
