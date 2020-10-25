@@ -22,12 +22,15 @@ SUCCESS=0
 FAILURE=1
 
 # Create zfs pools with/without compression
-# VALUES: "on" or "off"
-# DEFAULT: "on"
-ZFS_COMPRESSION=on
+# can be overwritten in jailer.conf
+ZFS_COMPRESSION="on"
 
 # Install the pkg tool at jail creation
 INSTALL_PKGTOOL="YES"
+
+# Default pkgbase repositoryname,
+# can be overwritten in jailer.conf
+REPO_NAME="FreeBSD-base"
 
 # load configuration file
 # default values
@@ -45,7 +48,7 @@ JAIL_CONF="/etc/jail.conf"
 
 JAIL_IP=""
 JAIL_UUID=$(uuidgen)
-#NAME_SERVER=$(grep nameserver /etc/resolv.conf | tail -n 1 | awk '{print $2}')
+
 NAME_SERVER=$(local-unbound-control list_forwards | grep -e '^\. IN' | awk '{print $NF}')
 
 LOG_FILE=""
@@ -359,7 +362,7 @@ install_baseos_pkg()
         esac
     fi
 
-    echo "Install FreeBSD Base System pkgs: ${CORE_PKGS} + ${EXTRA_PKGS}" | tee -a "${LOG_FILE}"
+    echo "Install FreeBSD Base System pkgs: ${CORE_PKGS} ${EXTRA_PKGS}" | tee -a "${LOG_FILE}"
     # Install the base system
     # shellcheck disable=SC2086
     set -o pipefail
@@ -547,24 +550,37 @@ setup_system()
         sysrc -R "${JAIL_DIR}" sendmail_msp_queue_enable=NO
     ) | column -t
 
-    # setup repository
-    mkdir -p "${JAIL_DIR}/usr/local/etc/pkg/repos"
-    echo "FreeBSD: { enabled: yes }" > "${JAIL_DIR}/usr/local/etc/pkg/repos/FreeBSD.conf"
-
-    if [ -f "${TEMPLATE_DIR}/FreeBSD-base.conf" ]; then
-        cp -a "${TEMPLATE_DIR}/FreeBSD-base.conf" "${JAIL_DIR}/usr/local/etc/pkg/repos"
-    else
-        echo "WARNING: No pkgbase repo \"FreeBSD-base.conf\" found, please check \"${TEMPLATE_DIR}\""
-    fi
-
     # mail configuration
     if [ ! -d "${JAIL_DIR}/etc/mail/" ]; then
         mkdir "${JAIL_DIR}/etc/mail/"
     fi
-    #cp -a "${JAIL_DIR}/usr/share/examples/dma/mailer.conf" "${JAIL_DIR}/etc/mail/"
+
     echo "sendmail  /usr/libexec/dma" >  ${JAIL_DIR}/etc/mail/mailer.conf
     echo "mailq     /usr/libexec/dma" >> ${JAIL_DIR}/etc/mail/mailer.conf
     echo ""
+}
+
+#
+# setup the repository
+#
+setup_repository()
+{
+    # setup repository
+    echo "configure pkg repositories:"
+
+    echo "enable official FreeBSD pkg repository"
+    mkdir -p "${JAIL_DIR}/usr/local/etc/pkg/repos"
+    echo "FreeBSD: { enabled: yes }" > "${JAIL_DIR}/usr/local/etc/pkg/repos/FreeBSD.conf"
+
+    echo "enable pkbase repository: ${REPO_NAME}"
+    if [ -f "${TEMPLATE_DIR}/FreeBSD-repo.conf.template" ]; then
+        sed \
+            -e "s|%%REPO_NAME%%|${REPO_NAME}|g"  \
+            -e "s|%%REPO_HOSTE%%|${REPO_HOST}|g" \
+            "${TEMPLATE_DIR}/FreeBSD-repo.conf.template" >> "${JAIL_DIR}/usr/local/etc/pkg/repos/${REPO_NAME}.conf"
+    else
+        echo "WARNING: \"FreeBSD-repo.conf.template\" found, please check \"${TEMPLATE_DIR}\""
+    fi
 }
 
 #
