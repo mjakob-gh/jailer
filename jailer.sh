@@ -576,10 +576,10 @@ setup_repository()
     if [ -f "${TEMPLATE_DIR}/FreeBSD-repo.conf.template" ]; then
         sed \
             -e "s|%%REPO_NAME%%|${REPO_NAME}|g"  \
-            -e "s|%%REPO_HOSTE%%|${REPO_HOST}|g" \
+            -e "s|%%REPO_HOST%%|${REPO_HOST}|g" \
             "${TEMPLATE_DIR}/FreeBSD-repo.conf.template" >> "${JAIL_DIR}/usr/local/etc/pkg/repos/${REPO_NAME}.conf"
     else
-        echo "WARNING: \"FreeBSD-repo.conf.template\" found, please check \"${TEMPLATE_DIR}\""
+        echo "WARNING: \"FreeBSD-repo.conf.template\" not found, please check \"${TEMPLATE_DIR}\""
     fi
 }
 
@@ -644,6 +644,7 @@ create_jail()
         create_jailconf_entry
         install_baseos_pkg
         setup_system
+        setup_repository 
 
         if [ "${INSTALL_PKGTOOL}" = "YES" ]; then
             install_pkgtool
