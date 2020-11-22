@@ -1,5 +1,6 @@
-# FreeBSD pkgbase system repository
+# FreeBSD system repository
 %%REPO_NAME%%: {
   url: "http://%%REPO_HOST%%/%%REPO_NAME%%/${ABI}/latest",
+  priority: 1,
   enabled: yes
 }
