@@ -342,8 +342,8 @@ create_dataset()
 install_baseos_pkg()
 {
     if [ $MINIJAIL = "true" ]; then
-        REPO_NAME="FreeBSD-jailpkg"
-        CORE_PKGS="FreeBSD-jailpkg"
+        REPO_NAME="FreeBSD-basecore"
+        CORE_PKGS="FreeBSD-basecore"
         EXTRA_PKGS=""
     else
         # EXTRA_PKGS: Some additional basesystem pkgs, extend the list if needed
@@ -703,7 +703,7 @@ destroy_jail()
 update_jail()
 {
     if [ $MINIJAIL = "true" ]; then
-        REPO_NAME="FreeBSD-jailpkg"
+        REPO_NAME="FreeBSD-basecore"
     fi
 
     JAIL_DIR="$(zfs get -H -o value mountpoint ${JAIL_DATASET_ROOT})/${JAIL_NAME}"
