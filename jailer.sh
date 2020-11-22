@@ -9,6 +9,9 @@ fi
 ## Variabledefinition ##
 ########################
 
+# remove comment for "Debug" mode
+#set -x
+
 # Program basename
 PGM="${0##*/}" # Program basename
 
@@ -371,6 +374,9 @@ install_baseos_pkg()
         echo "ERROR: pkgbase ${PKG} failed"
         exit 2
     fi
+
+    pkg --rootdir "${JAIL_DIR}" -o ASSUME_ALWAYS_YES=true clean | tee -a "${LOG_FILE}"
+
     set +o pipefail
     echo ""
 }
@@ -383,6 +389,7 @@ install_pkgtool()
     # install the pkg package
     set -o pipefail
     pkg --rootdir "${JAIL_DIR}" -R "${JAIL_DIR}/etc/pkg/" -o ASSUME_ALWAYS_YES=true -o ABI="${ABI_VERSION}" install ${PKG_QUIET} pkg | tee -a "${LOG_FILE}"
+    pkg --rootdir "${JAIL_DIR}" -o ASSUME_ALWAYS_YES=true clean | tee -a "${LOG_FILE}"
     set +o pipefail
     echo -n "pkg "
 }
@@ -409,6 +416,9 @@ install_pkgs()
             fi
             set +o pipefail
         done
+
+        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true clean | tee -a "${LOG_FILE}"
+
         echo ""
     fi
 }
@@ -692,6 +702,10 @@ destroy_jail()
 
 update_jail()
 {
+    if [ $MINIJAIL = "true" ]; then
+        REPO_NAME="FreeBSD-jailpkg"
+    fi
+
     JAIL_DIR="$(zfs get -H -o value mountpoint ${JAIL_DATASET_ROOT})/${JAIL_NAME}"
 
     if [ "${BASE_UPDATE}" = "true" ]; then
@@ -699,7 +713,9 @@ update_jail()
         echo "---------------"
         set -o pipefail
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true update  --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        #pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true update  ${PKG_QUIET} | tee -a "${LOG_FILE}"
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true upgrade --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        #pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true upgrade ${PKG_QUIET} | tee -a "${LOG_FILE}"
         set +o pipefail
         echo ""
     fi
