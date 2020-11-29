@@ -33,7 +33,7 @@ INSTALL_PKGTOOL="YES"
 
 # Default pkgbase repositoryname,
 # can be overwritten in jailer.conf
-REPO_NAME="FreeBSD-base"
+REPO_NAME="FreeBSD-pkgbase"
 
 # load configuration file
 # default values
