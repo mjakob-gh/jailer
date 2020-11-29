@@ -365,6 +365,7 @@ install_baseos_pkg()
         esac
     fi
 
+    echo "Using repository: ${REPO_NAME}" | tee -a "${LOG_FILE}"
     echo "Install FreeBSD Base System pkgs: ${CORE_PKGS} ${EXTRA_PKGS}" | tee -a "${LOG_FILE}"
     # Install the base system
     # shellcheck disable=SC2086
