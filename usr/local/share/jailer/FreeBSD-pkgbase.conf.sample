@@ -1,0 +1,5 @@
+# FreeBSD pkgbase system repository
+FreeBSD-pkgbase: {
+  url: "http://127.0.0.1/FreeBSD-pkgbase/${ABI}/latest",
+  enabled: yes
+}
