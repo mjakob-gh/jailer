@@ -416,7 +416,7 @@ install_pkgs()
         do
             echo -n "${PKG} "
             set -o pipefail
-            pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true install ${PKG_QUIET} "${PKG}" | tee -a "${LOG_FILE}"
+            pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true install ${PKG_QUIET} "--repository "${OFFICIAL_REPO_NAME}" "${PKG}" | tee -a "${LOG_FILE}"
             if [ $? -lt 0 ]; then
                  echo "ERROR: installation of ${PKG} failed"
             fi
