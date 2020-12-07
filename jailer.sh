@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=SC2039,SC2181
+# shellcheck disable=SC2039,SC2059,SC2181
 
 if [ "$( id -u )" -ne 0 ]; then
    echo "ERROR: Must run as root!" >&2
@@ -12,6 +12,12 @@ fi
 
 # remove comment for "Debug" mode
 #set -x
+
+# jailer configuration file
+JAILER_CONF="/usr/local/etc/jailer.conf"
+
+# template directory
+JAILER_TEMPLATE_DIR="/usr/local/share/jailer"
 
 # ANSI Color Codes
 RED="\033[0;31m"
@@ -29,7 +35,7 @@ ANSI_END="\033[0m"
 # Program basename
 PGM="${0##*/}" # Program basename
 
-VERSION="1.2"
+VERSION="2.1"
 
 # Number of arguments
 ARG_NUM=$#
@@ -40,7 +46,7 @@ FAILURE=1
 
 # Create zfs pools with/without compression
 # can be overwritten in jailer.conf
-ZFS_COMPRESSION="on"
+ZFS_COMPRESSION="YES"
 
 # Install the pkg tool at jail creation
 INSTALL_PKGTOOL="YES"
@@ -52,16 +58,16 @@ REPO_NAME="FreeBSD-pkgbase"
 # Repository where the "official" packages are hosted,
 # defaults to the FreeBSD Projects repository. When a
 # poudriere repo is hosted change the in jailer.conf
-OFFICIAL_REPO_NAME=FreeBSD
+OFFICIAL_REPO_NAME="FreeBSD"
 
 # load configuration file
 # default values
 # check for config file                      
-if [ ! -f /usr/local/etc/jailer.conf ]; then 
-    echo "ERROR: config file does not exist!"
+if [ ! -f ${JAILER_CONF} ]; then 
+    echo "ERROR: config file \"${JAILER_CONF}\" does not exist!"
     exit ${FAILURE}                                   
 else
-    . /usr/local/etc/jailer.conf
+    . ${JAILER_CONF}
 fi
 
 # initialise variables
@@ -69,12 +75,12 @@ JAIL_NAME=""
 JAIL_CONF="/etc/jail.conf"
 
 JAIL_IP=""
-JAIL_UUID=$(uuidgen)
+JAIL_UUID=$( uuidgen )
 
-NAME_SERVER=$(local-unbound-control list_forwards | grep -e '^\. IN' | awk '{print $NF}')
+NAME_SERVER=$( local-unbound-control list_forwards | grep -e '^\. IN' | awk '{print $NF}' )
 
 LOG_FILE=""
-ABI_VERSION=$(pkg config abi)
+ABI_VERSION=$( pkg config abi )
 PKGS=""
 SERVICES=""
 COPY_FILES=""
@@ -83,22 +89,10 @@ BASE_UPDATE=false
 PKG_UPDATE=false
 PKG_QUIET=""
 
-DESCR_ARG_LENGTH=22
-
 VNET=false
 MINIJAIL=false
 INTERFACE_ID=0
 
-# check if jails are enabled                     
-if [ ! "$(sysrc -n jail_enable)" = "YES" ]; then
-    echo "WARNING: jail service is not enabled."
-fi
-
-# check for template files
-if [ ! -f /usr/local/share/jailer/jail.template ] || [ ! -f /usr/local/share/jailer/jail-vnet.template ] ; then
-    echo "ERROR: template files do not exist!"
-    exit ${FAILURE}
-fi
 
 ##################################
 ## functions                    ##
@@ -227,6 +221,19 @@ usage()
     ### SYNOPSIS
     printf "${BOLD}SYNOPSIS${ANSI_END}\n"
     printf "  ${BOLD}%s create jailname${ANSI_END} ${BOLD}-i${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} [${BOLD}-t${ANSI_END} ${UNDERLINE}timezone${ANSI_END} ${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END} ${BOLD}-n${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} ${BOLD}-v -P${ANSI_END} ${UNDERLINE}\"list of packages\"${ANSI_END} ${BOLD}-a${ANSI_END} ${UNDERLINE}ABI_Version${ANSI_END} ${BOLD}-e${ANSI_END} ${UNDERLINE}\"list of services\"${ANSI_END} ${BOLD}-s -q${ANSI_END}]\n" "${PGM}"
+    printf "  ${BOLD}%s destroy${ANSI_END} ${UNDERLINE}jailname${ANSI_END}\n" "${PGM}"
+    printf "  ${BOLD}%s update${ANSI_END} ${UNDERLINE}jailname${ANSI_END} [-${BOLD}b -p -s${ANSI_END}]\n" "${PGM}"
+    printf "  ${BOLD}%s list${ANSI_END}\n" "${PGM}"
+    printf "  ${BOLD}%s start${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n" "${PGM}"
+    printf "  ${BOLD}%s stop${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n" "${PGM}"
+    printf "  ${BOLD}%s restart${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n" "${PGM}"
+    printf "  ${BOLD}%s help${ANSI_END}\n\t\t%s\n" "${PGM}"
+
+    ### DESCRIPTION
+    printf "${BOLD}DESCRIPTION${ANSI_END}\n"
+    printf "\tthe ${BOLD}%s${ANSI_END} command creates destroys and controls FreeBSD jails. \n" "${PGM}"
+
+    printf "  ${BOLD}%s create jailname${ANSI_END} ${BOLD}-i${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} [${BOLD}-t${ANSI_END} ${UNDERLINE}timezone${ANSI_END} ${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END} ${BOLD}-n${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} ${BOLD}-v -P${ANSI_END} ${UNDERLINE}\"list of packa↪\ges\"${ANSI_END} ${BOLD}-a${ANSI_END} ${UNDERLINE}ABI_Version${ANSI_END} ${BOLD}-e${ANSI_END} ${UNDERLINE}\"list of services\"${ANSI_END} ${BOLD}-s -q${ANSI_END}]\n" "${PGM}"
     printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-i" "ipaddress" "set IP address of Jail"
     echo   ""
     printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-t" "timezone" "set Timezone of Jail"
@@ -281,23 +288,23 @@ usage()
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}%s %s${ANSI_END}\n\t\t%s\n"                                   "${PGM}" "list" "list status of all jails"
+    printf "  ${BOLD}%s list${ANSI_END}\n\t\t%s\n" "${PGM}" "list status of all jails"
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}%s %s${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n\t\t%s\n" "${PGM}" "start" "start all jails, or only given jailname"
+    printf "  ${BOLD}%s start${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n\t\t%s\n" "${PGM}" "start all jails, or only given jailname"
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}%s %s${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n\t\t%s\n" "${PGM}" "stop" "stop all jails, or only given jailname"
+    printf "  ${BOLD}%s stop${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n\t\t%s\n" "${PGM}" "stop all jails, or only given jailname"
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}%s %s${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n\t\t%s\n" "${PGM}" "restart" "restart all jails, or only given jailname"
+    printf "  ${BOLD}%s restart${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n\t\t%s\n" "${PGM}" "restart all jails, or only given jailname"
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}%s -h${ANSI_END}\n\t\t%s\n" "${PGM}" "print this help message"
+    printf "  ${BOLD}%s help${ANSI_END}\n\t\t%s\n" "${PGM}" "print this help message"
     echo   ""
 
     ### DESCRIPTION
@@ -307,12 +314,12 @@ usage()
 
     ### FILES
     printf "${BOLD}FILES${ANSI_END}\n"
-    printf "\t/usr/local/etc/jailer.conf\n\t/usr/local/share/jailer/*\n"
+    printf "\t${JAILER_CONF}\n\t${JAILER_TEMPLATE_DIR}/*\n"
     echo   ""
 
     ### EXIT STATUS
     printf "${BOLD}EXIT STATUS${ANSI_END}\n"
-    printf "\tthe ${BOLD}%s${ANSI_END} utility exit 0 on success, 1 if at least one of\n" "${PGM}"
+    printf "\tthe ${BOLD}%s${ANSI_END} utility exit 0 on success, 1 if problems with the installtion exists and 2 if the wrong arguments are given\n" "${PGM}"
     echo   ""
 
     ### SEE ALSO
@@ -329,19 +336,13 @@ usage()
 validate_setup()
 {
     # check if jails are enabled
-    if [ ! "$(sysrc -n jails_enable)" = "YES" ]; then
+    if [ ! "$( sysrc -n jail_enable )" = "YES" ] ; then
         echo "WARNING: jails service is not enabled." 
     fi
 
-    # check for config file
-    if [ ! -f /usr/local/etc/jailer.conf ]; then
-        echo "ERROR: config file does not exist!"
-	exit ${FAILURE}
-    fi
-
     # check for template file
-    if [ $( ls /usr/local/share/jailer/*.template | wc -l ) -eq 0 ]; then
-        echo "ERROR: template files do not exist!"
+    if [ $( find "${JAILER_TEMPLATE_DIR}" -name '*.template' | wc -l ) -eq 0 ] ; then
+        echo "ERROR: template files \"${JAILER_TEMPLATE_DIR}/*\" do not exist!"
         exit ${FAILURE}
     fi
 }
@@ -358,26 +359,26 @@ check_repo()
 }
 
 #
-# check if given jailname already exits in jail.conf
+# check if given jailname already exists in jail.conf
 #
 check_jailconf()
 {
     if grep -e "^${JAIL_NAME} {" ${JAIL_CONF} > /dev/null 2>&1; then
-        return $SUCCESS
+        return ${SUCCESS}
     else
-        return $FAILURE
+        return ${FAILURE}
     fi
 }
 
 #
-# check if given jaildataset already exits
+# check if given jaildataset already exists
 #
 check_dataset()
 {
     if zfs list "${JAIL_DATASET_ROOT}/${JAIL_NAME}" > /dev/null 2>&1; then
-        return $SUCCESS
+        return ${SUCCESS}
     else
-        return $FAILURE
+        return ${FAILURE}
     fi
 }
 
@@ -386,9 +387,17 @@ check_dataset()
 #
 create_dataset()
 {
+    if [ "${ZFS_COMPRESSION}" = "YES" ] ; then
+        COMPRESS="on"
+    else
+        COMPRESS="off"
+    fi
+    
     echo -n "create zfs data-set: ${JAIL_DATASET_ROOT}/${JAIL_NAME} "
-    zfs create -o compression="${ZFS_COMPRESSION}" "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
+    set -o pipefail
+    zfs create -o compression="${COMPRESS}" "${JAIL_DATASET_ROOT}/${JAIL_NAME}" | tee -a "${LOG_FILE}"
     checkResult $?
+    set +o pipefail
     echo ""
 }
 
@@ -701,7 +710,7 @@ create_jail()
 
     JAIL_DIR="$( zfs get -H -o value mountpoint "${JAIL_DATASET_ROOT}" )/${JAIL_NAME}"
     if check_jailconf; then
-        echo "ERROR: $JAIL_NAME already exists in ${JAIL_CONF}."
+        echo "ERROR: ${JAIL_NAME} already exists in ${JAIL_CONF}."
         exit 2
     elif check_dataset; then
         echo "ERROR: dataset ${JAIL_DATASET_ROOT}/${JAIL_NAME} already exists."
@@ -799,13 +808,40 @@ JAIL_NAME="$2"
 # No Arguments:
 if [ $ARG_NUM -eq 0 ] ; then
     echo "missing command"
-    echo "see -h for help"
+    echo "use \"${PGM} help\" for help"
     exit 2
 fi
 
-case "$ACTION" in
-    -h)
+# check if jailer is setup correctly
+validate_setup
+
+# now really start the program
+case "${ACTION}" in
+    help)
         usage
+        ;;
+    info)
+       	echo "Host configuration"
+	echo "-------------------------------"
+	printf "Jail dataset:      %s\n" "${JAIL_DATASET_ROOT}"
+	printf "Jails enabled:     %s\n" "$( sysrc -n jail_enable )"
+	printf "Timezone:          %s\n" "${TIME_ZONE}"
+	echo ""
+	echo "Network configuration"
+	echo "-------------------------------"
+	printf "Firewall enabled:  %s\n" "$( sysrc -n pf_enable )"
+	printf "Network interface: %s\n" "${JAIL_INTERFACE}"
+	printf "VNET bridge:       %s\n" "${BRIDGE}"
+	printf "VNET gateway:      %s\n" "${GATEWAY}"
+	printf "Nameserver:        %s\n" "${NAME_SERVER}"
+	echo ""
+	echo "Jailer configuration"
+	echo "-------------------------------"
+	printf "Jailer version:    %s\n" "${VERSION}"
+	printf "Jailer repos:      %s\n" "$( grep -h -B 10 "enabled: yes" /usr/local/etc/pkg/repos/FreeBSD-*base*.conf | grep ": {" | awk -F":" '{printf $1 " "}' )"
+        printf "Template dir:      %s\n" "${TEMPLATE_DIR}"
+        printf "Jailer templates:  %s\n" "$( find "${JAILER_TEMPLATE_DIR}" -type f -name 'jail*.template' -exec basename {} \; | awk '{printf $1 " "}' )"
+	printf "ZFS compression:   %s\n" "${ZFS_COMPRESSION}"
         ;;
     create)
         shift 2
@@ -859,4 +895,7 @@ case "$ACTION" in
 	fi
         ;;
     *)
+        echo "invalid command \"${ACTION}\""
+        echo "use \"${PGM} help\" for help"
+        exit 2
 esac
