@@ -35,6 +35,11 @@ INSTALL_PKGTOOL="YES"
 # can be overwritten in jailer.conf
 REPO_NAME="FreeBSD-pkgbase"
 
+# Repository where the "official" packages are hosted,
+# defaults to the FreeBSD Projects repository. When a
+# poudriere repo is hosted change the in jailer.conf
+OFFICIAL_REPO_NAME=FreeBSD
+
 # load configuration file
 # default values
 # check for config file                      
@@ -389,7 +394,7 @@ install_pkgtool()
 {
     # install the pkg package
     set -o pipefail
-    pkg --rootdir "${JAIL_DIR}" -R "${JAIL_DIR}/etc/pkg/" -o ASSUME_ALWAYS_YES=true -o ABI="${ABI_VERSION}" install ${PKG_QUIET} pkg | tee -a "${LOG_FILE}"
+    pkg --rootdir "${JAIL_DIR}" -R "${JAIL_DIR}/etc/pkg/" -o ASSUME_ALWAYS_YES=true -o ABI="${ABI_VERSION}" install ${PKG_QUIET} --repository "${OFFICIAL_REPO_NAME}" pkg | tee -a "${LOG_FILE}"
     pkg --rootdir "${JAIL_DIR}" -o ASSUME_ALWAYS_YES=true clean | tee -a "${LOG_FILE}"
     set +o pipefail
     echo -n "pkg "
