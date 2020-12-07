@@ -228,14 +228,14 @@ usage()
 
     printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-a" "<ABI_Version>" "set the ABI Version to match the packages to be installed to the Jail"
     echo   ""
-
-    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-m" "" "use minijail package"
-    echo   ""
     printf "\t%s %-${DESCR_ARG_LENGTH}s   %s\n" "" "" "NOTE: Possible values for ABI_VERSION"
     printf "\t%s %-${DESCR_ARG_LENGTH}s   %s\n" "" "" " • FreeBSD:12:amd64"
     printf "\t%s %-${DESCR_ARG_LENGTH}s   %s\n" "" "" " • FreeBSD:13:amd64"
-    echo ""
+    echo   ""
             
+    printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-m" "" "use minijail package"
+    echo   ""
+
     printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-e" "\"list of services\"" "enable existing or just installed (-P ...) services"
     echo   ""
 
@@ -742,7 +742,8 @@ JAIL_NAME="$2"
 # check for numbers of arguments
 # ACTION and JAILNAME are mandatory
 # exit when less then 2 arguments
-if [ $ARG_NUM -lt 2 ] ; then
+# or the ACTIOn is not the list command
+if [ $ARG_NUM -lt 2 ] && [ ! $ACTION == "list" ] ; then
     usage
 fi
 
