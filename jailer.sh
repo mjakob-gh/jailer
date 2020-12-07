@@ -13,6 +13,19 @@ fi
 # remove comment for "Debug" mode
 #set -x
 
+# ANSI Color Codes
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+YELLOW="\033[0;33m"
+BLUE="\033[0;34m"
+
+# Bold an underline
+BOLD="\033[1m"
+UNDERLINE="\033[4m"
+
+# End ofANSI Code
+ANSI_END="\033[0m"
+
 # Program basename
 PGM="${0##*/}" # Program basename
 
@@ -97,9 +110,9 @@ fi
 checkResult ()
 {
     if [ "$1" -eq 0 ]; then
-        printf "%s[OK]%s\n" "${GREEN}" "${COLOR_END}"
+        printf "%s[OK]%s\n" "${GREEN}" "${ANSI_END}"
     else
-        printf "%s[ERROR]%s\n" "${RED}" "${COLOR_END}"
+        printf "%s[ERROR]%s\n" "${RED}" "${ANSI_END}"
     fi
 }
 
