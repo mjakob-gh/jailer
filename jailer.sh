@@ -6,7 +6,7 @@
 ########################
 
 # remove comment for "Debug" mode
-#set -x
+set -x
 
 # jailer configuration file
 JAILER_CONF="/usr/local/etc/jailer.conf"
@@ -91,6 +91,7 @@ VNET=false
 MINIJAIL=false
 INTERFACE_ID=0
 
+USE_PAGER="NO"
 
 ##################################
 ## functions                    ##
@@ -113,9 +114,12 @@ checkResult ()
 #
 get_args()
 {
-    while getopts "i:t:r:n:P:c:a:e:mvbpsq" option
+    while getopts "i:t:r:n:P:c:a:e:lmvbpsq" option
     do
         case $option in
+            l)
+                USE_PAGER="YES"
+                ;;
             i)
                 if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
                     JAIL_IP=${OPTARG}
@@ -218,13 +222,13 @@ usage()
     printf "  ${BOLD}%s start${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n" "${PGM}"
     printf "  ${BOLD}%s stop${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n" "${PGM}"
     printf "  ${BOLD}%s restart${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n" "${PGM}"
-    printf "  ${BOLD}%s help${ANSI_END}\n\t\t%s\n" "${PGM}"
+    printf "  ${BOLD}%s help${ANSI_END} [${BOLD}-l${ANSI_END}]\n" "${PGM}"
 
     ### DESCRIPTION
     printf "${BOLD}DESCRIPTION${ANSI_END}\n"
-    printf "\tthe ${BOLD}%s${ANSI_END} command creates destroys and controls FreeBSD jails. \n" "${PGM}"
+    printf "\tthe ${BOLD}%s${ANSI_END} command creates, destroys and controls FreeBSD jails build from a pkgbase or basecore repositories.\n" "${PGM}"
 
-    printf "  ${BOLD}%s create jailname${ANSI_END} ${BOLD}-i${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} [${BOLD}-t${ANSI_END} ${UNDERLINE}timezone${ANSI_END} ${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END} ${BOLD}-n${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} ${BOLD}-v -P${ANSI_END} ${UNDERLINE}\"list of packa↪\ges\"${ANSI_END} ${BOLD}-a${ANSI_END} ${UNDERLINE}ABI_Version${ANSI_END} ${BOLD}-e${ANSI_END} ${UNDERLINE}\"list of services\"${ANSI_END} ${BOLD}-s -q${ANSI_END}]\n" "${PGM}"
+    printf "  ${BOLD}%s create jailname${ANSI_END} ${BOLD}-i${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} [${BOLD}-t${ANSI_END} ${UNDERLINE}timezone${ANSI_END} ${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END} ${BOLD}-n${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} ${BOLD}-v -P${ANSI_END} ${UNDERLINE}\"list of packages\"${ANSI_END} ${BOLD}-a${ANSI_END} ${UNDERLINE}ABI_Version${ANSI_END} ${BOLD}-e${ANSI_END} ${UNDERLINE}\"list of services\"${ANSI_END} ${BOLD}-s -q${ANSI_END}]\n" "${PGM}"
     printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-i" "ipaddress" "set IP address of Jail"
     echo   ""
     printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-t" "timezone" "set Timezone of Jail"
@@ -295,7 +299,8 @@ usage()
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}%s help${ANSI_END}\n\t\t%s\n" "${PGM}" "print this help message"
+    printf "  ${BOLD}%s help${ANSI_END} [${BOLD}-l${ANSI_END}]\n\t\t%s\n" "${PGM}" "print this help message"
+    printf "\t${BOLD}%s${ANSI_END}\t%s\n" "-l" "open help message in pager"
     echo   ""
 
     ### DESCRIPTION
@@ -338,7 +343,7 @@ validate_setup()
     fi
 
     # check for template file
-    if [ "$( find "${JAILER_TEMPLATE_DIR}" -name '*.template' | wc -l )" -eq 0 ] ; then
+    if [ "$( find "${JAILER_TEMPLATE_DIR}" -name '*.template' | wc -l | sed 's/[[:space:]]//g' )" -eq 0 ] ; then
         printf "${RED}ERROR:${ANSI_END}   template files \"%s/*\" do not exist!" "${JAILER_TEMPLATE_DIR}"
         exit ${FAILURE}
     fi
@@ -835,7 +840,13 @@ validate_setup
 # now really start the program
 case "${ACTION}" in
     help)
-        usage
+        shift 1
+        get_args "$@"
+        if [ "${USE_PAGER}" = "YES" ] ; then
+            usage | less -R
+        else
+            usage
+        fi
         ;;
     info)
         get_info
