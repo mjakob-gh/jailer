@@ -491,12 +491,11 @@ enable_services()
     if [ ! X"${SERVICES}" = "X" ]; then
         printf "${BLUE}INFO:${ANSI_END}    Enabling Services:\n"
         echo "------------------"
-        (
-            for SERVICE in ${SERVICES}
-            do
-                service -j "${JAIL_NAME}" "${SERVICE}" enable
-            done
-        ) | column -t
+        for SERVICE in ${SERVICES}
+        do
+            printf "${BLUE}INFO:${ANSI_END}    ${BOLD}${WHITE}%s${ANSI_END}\n" "${SERVICE}"
+            service -j "${JAIL_NAME}" "${SERVICE}" enable
+        done
         echo ""
     fi
 }
@@ -569,7 +568,6 @@ create_jailconf_entry()
 setup_system()
 {
     printf "${BLUE}INFO:${ANSI_END}    setup jail: ${BOLD}${WHITE}%s${ANSI_END}\n" "${JAIL_NAME}" | tee -a "${LOG_FILE}"
-    echo "----------------------------"
     # add some default values for /etc/rc.conf
     # but first create the file, so sysrc wont show an error
     touch "${JAIL_DIR}/etc/rc.conf"
@@ -865,7 +863,7 @@ case "${ACTION}" in
         fi
         ;;
     list)
-        jls -N
+        jls -h -N jid name ip4.addr host.hostname vnet osrelease path | column -t
         ;;
     start)
         if [ "${JAIL_NAME}" = "" ] ; then
