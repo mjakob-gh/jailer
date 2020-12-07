@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2039,SC2181
 
 if [ "$( id -u )" -ne 0 ]; then
    echo "Must run as root!" >&2
@@ -96,9 +97,9 @@ fi
 checkResult ()
 {
     if [ "$1" -eq 0 ]; then
-        printf "${GREEN}[OK]${COLOR_END}\n"
+        printf "%s[OK]%s\n" "${GREEN}" "${COLOR_END}"
     else
-        printf "${RED}[ERROR]${COLOR_END}\n"
+        printf "%s[ERROR]%s\n" "${RED}" "${COLOR_END}"
     fi
 }
 
@@ -211,7 +212,7 @@ usage()
     echo   ""
     echo   "Usage:"
     echo   ""
-    printf "  ${PGM} create jailname -i <ipaddress> [-t <timezone> -r <reponame> -n <ipaddress> -v -P \"list of packages\" -a <ABI_Version> -e \"list of services\" -s -q]\n"
+    printf "  %s create jailname -i <ipaddress> [-t <timezone> -r <reponame> -n <ipaddress> -v -P \"list of packages\" -a <ABI_Version> -e \"list of services\" -s -q]\n" "${PGM}"
     printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-i" "<ipaddress>" "set IP address of Jail"
     printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-t" "<timezone>" "set Timezone of Jail"
     printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-n" "<ipaddress>" "set DNS server IP address of Jail"
@@ -248,10 +249,10 @@ usage()
     printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-q" "" "dont show output of pkg"
     echo   ""
 
-    printf "  ${PGM} destroy <jailname>\n"
+    printf "  %s destroy <jailname>\n" "${PGM}"
     echo   ""
 
-    printf "  ${PGM} update <jailname> [-b -p -s]\n"
+    printf "  %s update <jailname> [-b -p -s]\n" "${PGM}"
     printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-b" "" "update the pkgbase system"
     printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-p" "" "update the installed packages"
     printf "\t%s %-${DESCR_ARG_LENGTH}s : %s\n" "-s" "" "restart Jail after update"
@@ -336,7 +337,7 @@ check_dataset()
 create_dataset()
 {
     echo -n "create zfs data-set: ${JAIL_DATASET_ROOT}/${JAIL_NAME} "
-    zfs create -o compression=${ZFS_COMPRESSION} "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
+    zfs create -o compression="${ZFS_COMPRESSION}" "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
     checkResult $?
     echo ""
 }
@@ -373,8 +374,9 @@ install_baseos_pkg()
     echo "Using repository: ${REPO_NAME}" | tee -a "${LOG_FILE}"
     echo "Install FreeBSD Base System pkgs: ${CORE_PKGS} ${EXTRA_PKGS}" | tee -a "${LOG_FILE}"
     # Install the base system
-    # shellcheck disable=SC2086
     set -o pipefail
+    # the packages must be passed to pkg as multiple parameters, so dont use quotes and ignore the shellcheck error
+    # shellcheck disable=SC2086
     pkg --rootdir "${JAIL_DIR}" -o ASSUME_ALWAYS_YES=true -o ABI="${ABI_VERSION}" install ${PKG_QUIET} --repository "${REPO_NAME}" ${CORE_PKGS} ${EXTRA_PKGS} | tee -a "${LOG_FILE}"
     if [ $? -lt 0 ]; then
         echo "ERROR: pkgbase ${PKG} failed"
@@ -395,9 +397,9 @@ install_pkgtool()
     # install the pkg package
     set -o pipefail
     pkg --rootdir "${JAIL_DIR}" -R "${JAIL_DIR}/etc/pkg/" -o ASSUME_ALWAYS_YES=true -o ABI="${ABI_VERSION}" install ${PKG_QUIET} --repository "${OFFICIAL_REPO_NAME}" pkg | tee -a "${LOG_FILE}"
-    pkg --rootdir "${JAIL_DIR}" -o ASSUME_ALWAYS_YES=true clean | tee -a "${LOG_FILE}"
+    pkg --rootdir "${JAIL_DIR}" -R "${JAIL_DIR}/etc/pkg/" -o ASSUME_ALWAYS_YES=true ${PKG_QUIET} clean --all --quiet | tee -a "${LOG_FILE}"
     set +o pipefail
-    echo -n "pkg "
+    printf "pkg "
 }
 
 #
@@ -414,16 +416,15 @@ install_pkgs()
 
         for PKG in ${PKGS}
         do
-            echo -n "${PKG} "
+            printf "%s " "${PKG}"
             set -o pipefail
-            pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true install ${PKG_QUIET} "--repository "${OFFICIAL_REPO_NAME}" "${PKG}" | tee -a "${LOG_FILE}"
+            pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true install ${PKG_QUIET} --repository "${OFFICIAL_REPO_NAME}" "${PKG}" | tee -a "${LOG_FILE}"
             if [ $? -lt 0 ]; then
                  echo "ERROR: installation of ${PKG} failed"
             fi
             set +o pipefail
         done
-
-        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true clean | tee -a "${LOG_FILE}"
+        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true ${PKG_QUIET} clean --all --quiet | tee -a "${LOG_FILE}"
 
         echo ""
     fi
@@ -571,8 +572,8 @@ setup_system()
         mkdir "${JAIL_DIR}/etc/mail/"
     fi
 
-    echo "sendmail  /usr/libexec/dma" >  ${JAIL_DIR}/etc/mail/mailer.conf
-    echo "mailq     /usr/libexec/dma" >> ${JAIL_DIR}/etc/mail/mailer.conf
+    echo "sendmail  /usr/libexec/dma" >  "${JAIL_DIR}/etc/mail/mailer.conf"
+    echo "mailq     /usr/libexec/dma" >> "${JAIL_DIR}/etc/mail/mailer.conf"
     echo ""
 }
 
@@ -648,7 +649,7 @@ create_jail()
         exit 2
     fi
 
-    JAIL_DIR="$(zfs get -H -o value mountpoint ${JAIL_DATASET_ROOT})/${JAIL_NAME}"
+    JAIL_DIR="$( zfs get -H -o value mountpoint "${JAIL_DATASET_ROOT}" )/${JAIL_NAME}"
     if check_jailconf; then
         echo "ERROR: $JAIL_NAME already exists in ${JAIL_CONF}."
         exit 2
@@ -666,7 +667,7 @@ create_jail()
             install_pkgtool
         fi
 
-        service jail start ${JAIL_NAME}
+        service jail start "${JAIL_NAME}"
 	if [ "$(sysrc -n pf_enable)" = "YES" ]; then
             service pf reload
 	fi
@@ -690,7 +691,7 @@ create_jail()
 
 destroy_jail()
 {
-    JAIL_DIR="$(zfs get -H -o value mountpoint ${JAIL_DATASET_ROOT})/${JAIL_NAME}"
+    JAIL_DIR="$( zfs get -H -o value mountpoint "${JAIL_DATASET_ROOT}" )/${JAIL_NAME}"
 
     if ! check_jailconf; then
         echo "ERROR: $JAIL_NAME does not exist."
@@ -712,7 +713,7 @@ update_jail()
         REPO_NAME="FreeBSD-basecore"
     fi
 
-    JAIL_DIR="$(zfs get -H -o value mountpoint ${JAIL_DATASET_ROOT})/${JAIL_NAME}"
+    JAIL_DIR="$( zfs get -H -o value mountpoint "${JAIL_DATASET_ROOT}" )/${JAIL_NAME}"
 
     if [ "${BASE_UPDATE}" = "true" ]; then
         echo "Updating system"
@@ -747,8 +748,8 @@ JAIL_NAME="$2"
 # check for numbers of arguments
 # ACTION and JAILNAME are mandatory
 # exit when less then 2 arguments
-# or the ACTIOn is not the list command
-if [ $ARG_NUM -lt 2 ] && [ ! $ACTION == "list" ] ; then
+# or the ACTION is not the list command
+if [ $ARG_NUM -lt 2 ] && [ ! "${ACTION}" == "list" ] ; then
     usage
 fi
 
