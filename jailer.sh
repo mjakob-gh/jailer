@@ -1,11 +1,6 @@
 #!/bin/sh
 # shellcheck disable=SC2039,SC2059,SC2181
 
-if [ "$( id -u )" -ne 0 ]; then
-   echo "ERROR: Must run as root!" >&2
-   exit "${FAILURE}"
-fi
-
 ########################
 ## Variabledefinition ##
 ########################
@@ -24,6 +19,9 @@ RED="\033[0;31m"
 GREEN="\033[0;32m"
 YELLOW="\033[0;33m"
 BLUE="\033[0;34m"
+PURPLE="\033[0;35m"
+CYAN="\033[0;36m"
+WHITE="\033[0;37m"
 
 # Bold an underline
 BOLD="\033[1m"
@@ -64,7 +62,7 @@ OFFICIAL_REPO_NAME="FreeBSD"
 # default values
 # check for config file                      
 if [ ! -f ${JAILER_CONF} ]; then 
-    echo "ERROR: config file \"${JAILER_CONF}\" does not exist!"
+    printf "${RED}ERROR:${ANSI_END}   config file \"%s\" does not exist!" "${JAILER_CONF}"
     exit ${FAILURE}                                   
 else
     . ${JAILER_CONF}
@@ -104,9 +102,9 @@ INTERFACE_ID=0
 checkResult ()
 {
     if [ "$1" -eq 0 ]; then
-        printf "%s[OK]%s\n" "${GREEN}" "${ANSI_END}"
+        printf "${GREEN}[OK]${ANSI_END}\n"
     else
-        printf "%s[ERROR]%s\n" "${RED}" "${ANSI_END}"
+        printf "${RED}[ERROR]${ANSI_END}\n"
     fi
 }
 
@@ -121,27 +119,24 @@ get_args()
             i)
                 if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
                     JAIL_IP=${OPTARG}
-                    echo "IP: ${JAIL_IP}"
                 else
-                    echo "ERROR: invalid IP address (${OPTARG})"
+                    printf "${RED}ERROR:${ANSI_END}   invalid IP address \"%s\"\n." "${OPTARG}"
                     exit 2
                 fi
                 ;;
             t)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     TIME_ZONE=${OPTARG}
-                    echo "Timezone: ${TIME_ZONE}"
                 else
-                    echo "INFO: no timezone specified, using default ${TIME_ZONE}."
+                    printf "${BLUE}INFO:${ANSI_END}    no timezone specified, using default \"%s\"\n." "${TIME_ZONE}"
                 fi
                 ;;
             r)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     REPO_NAME=${OPTARG}
                     check_repo
-                    echo "Pkg-Repository: ${REPO_NAME}"
                 else
-                    echo "INFO: no repository specified, using default ${REPO_NAME}."
+                    printf "${BLUE}INFO:${ANSI_END}    no repository specified, using default \"%s\"\n." "${REPO_NAME}"
                 fi
                 ;;
             m)
@@ -150,38 +145,34 @@ get_args()
             n)
                 if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
                     NAME_SERVER=${OPTARG}
-                    echo "Nameserver: ${NAME_SERVER}"
                 else
-                    echo "ERROR: invalid IP address for nameserver (${OPTARG})"
+                    printf "${RED}ERROR:${ANSI_END}   invalid IP address for nameserver \"%s\"\n." "${OPTARG}"
                     exit 2
                 fi
                 ;;
             P)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     PKGS=${OPTARG}
-                    echo "Install packages: ${PKGS}"
                 else
-                    echo "INFO: no packages specified."
+                    printf "${BLUE}INFO:${ANSI_END}    no packages specified.\n"
                 fi
                 ;;
             c)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     COPY_FILES=${OPTARG}
-                    echo "Copying files: ${COPY_FILES}"
+                    printf "${BLUE}INFO:${ANSI_END}    Copying files: \"%s\"\n." "${COPY_FILES}"
                 fi
                 ;;
             a)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     ABI_VERSION=${OPTARG}
-                    echo "ABI Version: ${ABI_VERSION}"
                 else
-                    echo "INFO: no ABI VERSION specified, using default (${ABI_VERSION})"
+                    printf "${BLUE}INFO:${ANSI_END}    no ABI VERSION specified, using default \"%s\"\n." "${ABI_VERSION}"
                 fi
                 ;;
             e)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     SERVICES=${OPTARG}
-                    echo "Enabling services: ${SERVICES}"
                 fi
                 ;;
             v)
@@ -335,14 +326,20 @@ usage()
 #
 validate_setup()
 {
+    # only root can start the programm
+    if [ "$( id -u )" -ne 0 ]; then
+        printf "${RED}ERROR:${ANSI_END}   must run as root!\n"
+        exit "${FAILURE}"
+    fi
+
     # check if jails are enabled
     if [ ! "$( sysrc -n jail_enable )" = "YES" ] ; then
-        echo "WARNING: jails service is not enabled." 
+        printf "${YELLOW}WARNING:${ANSI_END} jails service is not enabled."
     fi
 
     # check for template file
-    if [ $( find "${JAILER_TEMPLATE_DIR}" -name '*.template' | wc -l ) -eq 0 ] ; then
-        echo "ERROR: template files \"${JAILER_TEMPLATE_DIR}/*\" do not exist!"
+    if [ "$( find "${JAILER_TEMPLATE_DIR}" -name '*.template' | wc -l )" -eq 0 ] ; then
+        printf "${RED}ERROR:${ANSI_END}   template files \"%s/*\" do not exist!" "${JAILER_TEMPLATE_DIR}"
         exit ${FAILURE}
     fi
 }
@@ -353,7 +350,7 @@ validate_setup()
 check_repo()
 {
     if [ ! -f "/usr/local/etc/pkg/repos/${REPO_NAME}.conf" ]; then
-        echo "ERROR: no repository ${REPO_NAME} found."
+        printf "${RED}ERROR:${ANSI_END}   no repository \"%s\" found!" "${JAILER_TEMPLATE_DIR}" "${REPO_NAME}"
         exit 2
     fi
 }
@@ -393,12 +390,10 @@ create_dataset()
         COMPRESS="off"
     fi
     
-    echo -n "create zfs data-set: ${JAIL_DATASET_ROOT}/${JAIL_NAME} "
+    printf "${BLUE}INFO:${ANSI_END}    create zfs dataset: \"%s\" " "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
     set -o pipefail
     zfs create -o compression="${COMPRESS}" "${JAIL_DATASET_ROOT}/${JAIL_NAME}" | tee -a "${LOG_FILE}"
-    checkResult $?
     set +o pipefail
-    echo ""
 }
 
 #
@@ -406,6 +401,9 @@ create_dataset()
 #
 install_baseos_pkg()
 {
+    # create "${JAIL_DIR}/var/cache/pkg", or pkg complains
+    mkdir -p "${JAIL_DIR}/var/cache/pkg" || exit 1
+
     if [ $MINIJAIL = "true" ]; then
         REPO_NAME="FreeBSD-basecore"
         CORE_PKGS="FreeBSD-basecore"
@@ -424,28 +422,23 @@ install_baseos_pkg()
                 EXTRA_PKGS="FreeBSD-rc FreeBSD-dma FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at"
                 ;;
             *)
-                echo "ERROR: invalid OS Version detectet: ${ABI_VERSION}"
+                printf "${RED}ERROR:${ANSI_END} invalid OS Version detectet: \"%s\"\n" "${ABI_VERSION}"
                 exit ${FAILURE}
                 ;;
         esac
     fi
 
-    echo "Using repository: ${REPO_NAME}" | tee -a "${LOG_FILE}"
-    echo "Install FreeBSD Base System pkgs: ${CORE_PKGS} ${EXTRA_PKGS}" | tee -a "${LOG_FILE}"
+    printf "${BLUE}INFO:${ANSI_END}    Using repository: \"%s\"\n" "${REPO_NAME}" | tee -a "${LOG_FILE}"
+    printf "${BLUE}INFO:${ANSI_END}    Install FreeBSD Base System pkgs: %s %s\n" "${CORE_PKGS}" "${EXTRA_PKGS}" | tee -a "${LOG_FILE}"
     # Install the base system
     set -o pipefail
     # the packages must be passed to pkg as multiple parameters, so dont use quotes and ignore the shellcheck error
     # shellcheck disable=SC2086
     pkg --rootdir "${JAIL_DIR}" -o ASSUME_ALWAYS_YES=true -o ABI="${ABI_VERSION}" install ${PKG_QUIET} --repository "${REPO_NAME}" ${CORE_PKGS} ${EXTRA_PKGS} | tee -a "${LOG_FILE}"
-    if [ $? -lt 0 ]; then
-        echo "ERROR: pkgbase ${PKG} failed"
-        exit 2
-    fi
 
     pkg --rootdir "${JAIL_DIR}" -o ASSUME_ALWAYS_YES=true clean | tee -a "${LOG_FILE}"
 
     set +o pipefail
-    echo ""
 }
 
 # 
@@ -467,7 +460,7 @@ install_pkgtool()
 install_pkgs()
 {
     if [ ! X"${PKGS}" = "X" ]; then
-        echo "Install pkgs:"
+        printf "${BLUE}INFO:${ANSI_END}    Install pkgs:\n"
         echo "-------------"
 
         # install the pkg package
@@ -479,13 +472,11 @@ install_pkgs()
             set -o pipefail
             pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true install ${PKG_QUIET} --repository "${OFFICIAL_REPO_NAME}" "${PKG}" | tee -a "${LOG_FILE}"
             if [ $? -lt 0 ]; then
-                 echo "ERROR: installation of ${PKG} failed"
+                printf "${RED}ERROR:${ANSI_END}   installation of \"%s\" failed" "${PKG}"
             fi
             set +o pipefail
         done
         pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true ${PKG_QUIET} clean --all --quiet | tee -a "${LOG_FILE}"
-
-        echo ""
     fi
 }
 
@@ -495,12 +486,11 @@ install_pkgs()
 enable_services()
 {
     if [ ! X"${SERVICES}" = "X" ]; then
-        echo "Enabling Services:"
+        printf "${BLUE}INFO:${ANSI_END}    Enabling Services:\n"
         echo "------------------"
         (
             for SERVICE in ${SERVICES}
             do
-                #sysrc -R ${JAIL_DIR} "${SERVICE}_enable=YES"
                 service -j "${JAIL_NAME}" "${SERVICE}" enable
             done
         ) | column -t
@@ -514,7 +504,7 @@ enable_services()
 copy_files()
 {
     if [ ! X"${COPY_FILES}" = "X" ]; then
-        echo "Copying files:"
+        printf "${BLUE}INFO:${ANSI_END}    Copying files:\n"
         echo "--------------"
 
         OLDIFS=$IFS
@@ -556,20 +546,18 @@ create_jailconf_entry()
 {
     get_next_interface_id
 
-    echo "add jail configuration to ${JAIL_CONF}" | tee -a "${LOG_FILE}"
+    printf "${BLUE}INFO:${ANSI_END}    add jail configuration to \"%s\"\n" "${JAIL_CONF}" | tee -a "${LOG_FILE}"
 
-    sed \
-        -e "s|%%JAIL_NAME%%|${JAIL_NAME}|g"           \
-        -e "s|%%JAIL_INTERFACE%%|${JAIL_INTERFACE}|g" \
-        -e "s|%%JAIL_UUID%%|${JAIL_UUID}|g"           \
-        -e "s|%%JAIL_IP%%|${JAIL_IP}|g"               \
-        -e "s|%%JAIL_DIR%%|${JAIL_DIR}|g"             \
-        -e "s|%%INTERFACE_ID%%|${INTERFACE_ID}|g"     \
-        -e "s|%%BRIDGE%%|${BRIDGE}|g"                 \
-        -e "s|%%GATEWAY%%|${GATEWAY}|g"               \
+    sed -e "s|%%JAIL_NAME%%|${JAIL_NAME}|g"             \
+        -e "s|%%JAIL_DOMAINNAME%%|${JAIL_DOMAINNAME}|g" \
+        -e "s|%%JAIL_INTERFACE%%|${JAIL_INTERFACE}|g"   \
+        -e "s|%%JAIL_UUID%%|${JAIL_UUID}|g"             \
+        -e "s|%%JAIL_IP%%|${JAIL_IP}|g"                 \
+        -e "s|%%JAIL_DIR%%|${JAIL_DIR}|g"               \
+        -e "s|%%INTERFACE_ID%%|${INTERFACE_ID}|g"       \
+        -e "s|%%BRIDGE%%|${BRIDGE}|g"                   \
+        -e "s|%%GATEWAY%%|${GATEWAY}|g"                 \
         "${TEMPLATE_DIR}/${JAIL_TEMPLATE}" >> "${JAIL_CONF}"
-
-    echo ""
 }
 
 #
@@ -577,7 +565,7 @@ create_jailconf_entry()
 #
 setup_system()
 {
-    echo "Setup jail: \"${JAIL_NAME}\"" | tee -a "${LOG_FILE}"
+    printf "${BLUE}INFO:${ANSI_END}    Setup jail: \"%s\"\n" "${JAIL_NAME}" | tee -a "${LOG_FILE}"
     echo "----------------------------"
     # add some default values for /etc/rc.conf
     # but first create the file, so sysrc wont show an error
@@ -601,24 +589,21 @@ setup_system()
         rm -r "${JAIL_DIR:?}"/usr/tests/*
     fi
 
-    # create directory "/usr/share/keys/pkg/revoked/"
-    # or pkg inside the jail wont work.
-    #mkdir ${JAIL_DIR}/usr/share/keys/pkg/revoked/
-
     # set timezone in jail
-    echo "Setup timezone: ${TIME_ZONE}" | tee -a "${LOG_FILE}"
+    printf "${BLUE}INFO:${ANSI_END}    Setup timezone: \"%s\"\n" "${TIME_ZONE}" | tee -a "${LOG_FILE}"
     tzsetup -sC "${JAIL_DIR}" "${TIME_ZONE}"
 
     # Network
+    printf "${BLUE}INFO:${ANSI_END}    add nameserver \"%s\"\n" "${NAME_SERVER}" | tee -a "${LOG_FILE}"
     echo "nameserver ${NAME_SERVER}" > "${JAIL_DIR}/etc/resolv.conf"
 
     if [ ${VNET} = "true" ]; then
-        echo "Adding VNET IP ${JAIL_IP}"
+        printf "${BLUE}INFO:${ANSI_END}    Adding VNET IP \"%s\"\n" "${JAIL_IP}"
         #sysrc -R ${JAIL_DIR} =${JAIL_IP}
     fi
 
     # Mailing
-    echo "configure dma mailer"
+    printf "${BLUE}INFO:${ANSI_END}    configure dma mailer\n"
     (
         sysrc -R "${JAIL_DIR}" sendmail_enable=NO
         sysrc -R "${JAIL_DIR}" sendmail_submit_enable=NO
@@ -633,7 +618,6 @@ setup_system()
 
     echo "sendmail  /usr/libexec/dma" >  "${JAIL_DIR}/etc/mail/mailer.conf"
     echo "mailq     /usr/libexec/dma" >> "${JAIL_DIR}/etc/mail/mailer.conf"
-    echo ""
 }
 
 #
@@ -642,20 +626,20 @@ setup_system()
 setup_repository()
 {
     # setup repository
-    echo "configure pkg repositories:"
+    printf "${BLUE}INFO:${ANSI_END}    configure pkg repositories:\n"
+    printf "${BLUE}INFO:${ANSI_END}    enable official FreeBSD pkg repository\n"
 
-    echo "enable official FreeBSD pkg repository"
     mkdir -p "${JAIL_DIR}/usr/local/etc/pkg/repos"
     echo "FreeBSD: { enabled: yes }" > "${JAIL_DIR}/usr/local/etc/pkg/repos/FreeBSD.conf"
 
-    echo "enable pkbase repository: ${REPO_NAME}"
+    printf "${BLUE}INFO:${ANSI_END}    enable pkbase repository: \"%s\"\n" "${REPO_NAME}"
     if [ -f "${TEMPLATE_DIR}/FreeBSD-repo.conf.template" ]; then
         sed \
             -e "s|%%REPO_NAME%%|${REPO_NAME}|g"  \
             -e "s|%%REPO_HOST%%|${REPO_HOST}|g" \
             "${TEMPLATE_DIR}/FreeBSD-repo.conf.template" >> "${JAIL_DIR}/usr/local/etc/pkg/repos/${REPO_NAME}.conf"
     else
-        echo "WARNING: \"FreeBSD-repo.conf.template\" not found, please check \"${TEMPLATE_DIR}\""
+        printf "${YELLOW}WARNING:${ANSI_END} \"FreeBSD-repo.conf.template\" not found, please check \"%s\"\n" "${TEMPLATE_DIR}"
     fi
 }
 
@@ -665,15 +649,14 @@ setup_repository()
 destroy_dataset()
 {
     if check_dataset; then
-        echo "Deleting dataset: ${JAIL_DATASET_ROOT}/${JAIL_NAME}" | tee -a "${LOG_FILE}"
+        printf "${BLUE}INFO:${ANSI_END}    Deleting dataset: \"%s\"\n" "${JAIL_DATASET_ROOT}/${JAIL_NAME}" | tee -a "${LOG_FILE}"
         # forcibly unmount the dataset to prevent problems
         # zfs "destroying" the dataset
         umount -f "${JAIL_DIR}"
         zfs destroy "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
     else
-        echo "ERROR: no dataset ${JAIL_DATASET_ROOT}/${JAIL_NAME}"
+        printf "${RED}ERROR:${ANSI_END}   no dataset \"%s\"\n" "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
     fi
-    echo ""
 }
 
 #
@@ -682,12 +665,11 @@ destroy_dataset()
 destroy_jailconf_entry()
 {
     if check_jailconf; then
-        echo "Deleting entry: ${JAIL_NAME}"
-        sed  -i '' "/^${JAIL_NAME}[[:space:]]*{/,/^[[:space:]]*}[[:space:]]*$/d" "${JAIL_CONF}"
+        printf "${BLUE}INFO:${ANSI_END}    Deleting entry: \"%s\"\n" "${JAIL_NAME}"
+        sed -i '' "/^${JAIL_NAME}[[:space:]]*{/,/^[[:space:]]*}[[:space:]]*$/d" "${JAIL_CONF}"
     else
-        echo "ERROR: no entry ${JAIL_NAME} in \"${JAIL_CONF}\""
+        printf "${RED}ERROR:${ANSI_END}   no entry \"%s\" in \"%s\"\n" "${JAIL_NAME}" "${JAIL_CONF}"
     fi
-    echo ""
 }
 
 #
@@ -696,24 +678,23 @@ destroy_jailconf_entry()
 create_log_file()
 {
     LOG_FILE="/tmp/jailer_${ACTION}_${JAIL_NAME}_$(date +%Y%m%d%H%M).log"
-    echo "INFO: Logs are written to: ${LOG_FILE}"
-    echo ""
+    printf "${BLUE}INFO:${ANSI_END}    creating logfile: \"%s\"\n" "${LOG_FILE}"
 }
 
 
 create_jail()
 {
     if [ X"${JAIL_IP}" = "X" ]; then
-        echo "ERROR: no ip adresse given (-i)"
+        printf "${RED}ERROR:${ANSI_END}   no ip adresse given (-i)\n"
         exit 2
     fi
 
     JAIL_DIR="$( zfs get -H -o value mountpoint "${JAIL_DATASET_ROOT}" )/${JAIL_NAME}"
     if check_jailconf; then
-        echo "ERROR: ${JAIL_NAME} already exists in ${JAIL_CONF}."
+        printf "${RED}ERROR:${ANSI_END}   \"%s\" already exists in \"%s\"!\n" "${JAIL_NAME}" "${JAIL_CONF}"
         exit 2
     elif check_dataset; then
-        echo "ERROR: dataset ${JAIL_DATASET_ROOT}/${JAIL_NAME} already exists."
+        printf "${RED}ERROR:${ANSI_END}   dataset \"%s\" already exists!\n" "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
         exit 2
     else
         create_dataset
@@ -726,6 +707,7 @@ create_jail()
             install_pkgtool
         fi
 
+        printf "${BLUE}INFO:${ANSI_END}    "
         service jail start "${JAIL_NAME}"
 	if [ "$(sysrc -n pf_enable)" = "YES" ]; then
             service pf reload
@@ -736,6 +718,7 @@ create_jail()
         # enable services specified in -e argument
         enable_services
 
+        printf "${BLUE}INFO:${ANSI_END}    "
         service jail stop "${JAIL_NAME}"
 
         # copy files into the jail specified in -c argument
@@ -743,6 +726,7 @@ create_jail()
 
         # start the jail when -s argument is set
         if [ ${AUTO_START} = "true" ]; then
+            printf "${BLUE}INFO:${ANSI_END}    "
             service jail start "${JAIL_NAME}"
         fi
     fi
@@ -753,12 +737,13 @@ destroy_jail()
     JAIL_DIR="$( zfs get -H -o value mountpoint "${JAIL_DATASET_ROOT}" )/${JAIL_NAME}"
 
     if ! check_jailconf; then
-        echo "ERROR: $JAIL_NAME does not exist."
+        printf "${RED}ERROR:${ANSI_END}   jail ${BOLD}${WHITE}%s${ANSI_END} does not exist!\n" "${JAIL_NAME}"
         exit 2
     elif ! check_dataset; then
-        echo "ERROR: dataset ${JAIL_DATASET_ROOT}/${JAIL_NAME} does not exist."
+        printf "${RED}ERROR:${ANSI_END}   dataset \"%s\"  does not exist!\n" "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
         exit 2
     else
+        printf "${BLUE}INFO:${ANSI_END}    "
         service jail stop "${JAIL_NAME}"
         destroy_jailconf_entry
         destroy_dataset
@@ -766,6 +751,9 @@ destroy_jail()
     echo ""
 }
 
+#
+#
+#
 update_jail()
 {
     if [ $MINIJAIL = "true" ]; then
@@ -775,20 +763,18 @@ update_jail()
     JAIL_DIR="$( zfs get -H -o value mountpoint "${JAIL_DATASET_ROOT}" )/${JAIL_NAME}"
 
     if [ "${BASE_UPDATE}" = "true" ]; then
-        echo "Updating system"
+        printf "${BLUE}INFO:${ANSI_END}    Updating system\n"
         echo "---------------"
         set -o pipefail
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true update  --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
-        #pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true update  ${PKG_QUIET} | tee -a "${LOG_FILE}"
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true upgrade --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
-        #pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true upgrade ${PKG_QUIET} | tee -a "${LOG_FILE}"
         set +o pipefail
         echo ""
     fi
 
     if [ ${PKG_UPDATE} = "true" ]; then
-        echo "Updating packages"
-        echo "-----------------"
+        printf "${BLUE}INFO:${ANSI_END}    Updating packages\n"
+        echo "---------------------------------"
         set -o pipefail
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
@@ -797,8 +783,36 @@ update_jail()
     fi
 
     if [ $? -lt 0 ]; then
-        echo "ERROR: installation of ${PKG} failed"
+        printf "${RED}ERROR:${ANSI_END}   installation of \"%s\" failed!\n" "${PKG}"
     fi
+}
+
+#
+#
+#
+get_info()
+{
+    printf "${BLUE}Host configuration${ANSI_END}\n"
+    printf "${BLUE}-------------------------------${ANSI_END}\n"
+    printf "Jail dataset:      %s\n" "${JAIL_DATASET_ROOT}"
+    printf "Jails enabled:     %s\n" "$( sysrc -n jail_enable )"
+    printf "Timezone:          %s\n" "${TIME_ZONE}"
+    echo   ""
+    printf "${BLUE}Network configuration${ANSI_END}\n"
+    printf "${BLUE}-------------------------------${ANSI_END}\n"
+    printf "Firewall enabled:  %s\n" "$( sysrc -n pf_enable )"
+    printf "Network interface: %s\n" "${JAIL_INTERFACE}"
+    printf "VNET bridge:       %s\n" "${BRIDGE}"
+    printf "VNET gateway:      %s\n" "${GATEWAY}"
+    printf "Nameserver:        %s\n" "${NAME_SERVER}"
+    echo   ""
+    printf "${BLUE}Jailer configuration${ANSI_END}\n"
+    printf "${BLUE}-------------------------------${ANSI_END}\n"
+    printf "Jailer version:    %s\n" "${VERSION}"
+    printf "Jailer repos:      %s\n" "$( grep -h -B 10 "enabled: yes" /usr/local/etc/pkg/repos/FreeBSD-*base*.conf | grep ": {" | awk -F":" '{printf $1 " "}' )"
+    printf "Template dir:      %s\n" "${TEMPLATE_DIR}"
+    printf "Jailer templates:  %s\n" "$( find "${JAILER_TEMPLATE_DIR}" -type f -name 'jail*.template' -exec basename {} \; | awk '{printf $1 " "}' )"
+    printf "ZFS compression:   %s\n" "${ZFS_COMPRESSION}"
 }
 
 ACTION="$1"
@@ -807,8 +821,8 @@ JAIL_NAME="$2"
 # check for number of arguments
 # No Arguments:
 if [ $ARG_NUM -eq 0 ] ; then
-    echo "missing command"
-    echo "use \"${PGM} help\" for help"
+    printf "${RED}ERROR:${ANSI_END}   missing command!\n"
+    printf "${BLUE}INFO:${ANSI_END}    use \"%s help\" for help message." "${PGM}"
     exit 2
 fi
 
@@ -821,27 +835,7 @@ case "${ACTION}" in
         usage
         ;;
     info)
-       	echo "Host configuration"
-	echo "-------------------------------"
-	printf "Jail dataset:      %s\n" "${JAIL_DATASET_ROOT}"
-	printf "Jails enabled:     %s\n" "$( sysrc -n jail_enable )"
-	printf "Timezone:          %s\n" "${TIME_ZONE}"
-	echo ""
-	echo "Network configuration"
-	echo "-------------------------------"
-	printf "Firewall enabled:  %s\n" "$( sysrc -n pf_enable )"
-	printf "Network interface: %s\n" "${JAIL_INTERFACE}"
-	printf "VNET bridge:       %s\n" "${BRIDGE}"
-	printf "VNET gateway:      %s\n" "${GATEWAY}"
-	printf "Nameserver:        %s\n" "${NAME_SERVER}"
-	echo ""
-	echo "Jailer configuration"
-	echo "-------------------------------"
-	printf "Jailer version:    %s\n" "${VERSION}"
-	printf "Jailer repos:      %s\n" "$( grep -h -B 10 "enabled: yes" /usr/local/etc/pkg/repos/FreeBSD-*base*.conf | grep ": {" | awk -F":" '{printf $1 " "}' )"
-        printf "Template dir:      %s\n" "${TEMPLATE_DIR}"
-        printf "Jailer templates:  %s\n" "$( find "${JAILER_TEMPLATE_DIR}" -type f -name 'jail*.template' -exec basename {} \; | awk '{printf $1 " "}' )"
-	printf "ZFS compression:   %s\n" "${ZFS_COMPRESSION}"
+        get_info
         ;;
     create)
         shift 2
@@ -861,6 +855,7 @@ case "${ACTION}" in
         create_log_file
         update_jail
         if [ "${AUTO_START}" = "true" ]; then
+            printf "${BLUE}INFO:${ANSI_END}    "
             service jail restart "${JAIL_NAME}"
         fi
         ;;
@@ -869,8 +864,10 @@ case "${ACTION}" in
         ;;
     start)
         if [ "${JAIL_NAME}" = "" ] ; then
+            printf "${BLUE}INFO:${ANSI_END}    "
             service jail start
         else
+            printf "${BLUE}INFO:${ANSI_END}    "
             service jail start "${JAIL_NAME}"
         fi
 
@@ -880,22 +877,27 @@ case "${ACTION}" in
         ;;
     stop)
         if [ "${JAIL_NAME}" = "" ] ; then
+            printf "${BLUE}INFO:${ANSI_END}    "
             service jail stop
         else
+            printf "${BLUE}INFO:${ANSI_END}    "
             service jail stop "${JAIL_NAME}"
         fi
         if [ "$(sysrc -n pf_enable)" = "YES" ]; then
+            printf "${BLUE}INFO:${ANSI_END}    "
             service pf reload
         fi
         ;;
     restart)
+        printf "${BLUE}INFO:${ANSI_END}    "
         service jail restart "${JAIL_NAME}"
 	if [ "$(sysrc -n pf_enable)" = "YES" ]; then
+            printf "${BLUE}INFO:${ANSI_END}    "
             service pf reload
 	fi
         ;;
     *)
-        echo "invalid command \"${ACTION}\""
-        echo "use \"${PGM} help\" for help"
+        printf "${RED}ERROR:${ANSI_END}   invalid command \"%s\"!\n" "${ACTION}"
+        printf "${BLUE}INFO:${ANSI_END}    use \"%s help\" for help message.\n" "${PGM}"
         exit 2
 esac

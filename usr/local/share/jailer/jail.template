@@ -1,12 +1,13 @@
 %%JAIL_NAME%% {
     # Hostname
-    host.hostname = "%%JAIL_NAME%%.local";
-    host.hostuuid = "%%JAIL_UUID%%";
+    host.hostname   = "%%JAIL_NAME%%";
+    host.domainname = "%%JAIL_DOMAINNAME%%";
+    host.hostuuid   = "%%JAIL_UUID%%";
 
     # Network
     interface     = %%JAIL_INTERFACE%%;
     ip4.addr      = %%JAIL_IP%%;
-    allow.raw_sockets;
+    allow.raw_sockets = 1;
 
     # Systemvalues
     devfs_ruleset = 4;
@@ -16,10 +17,10 @@
     sysvshm = new;
 
     path = "%%JAIL_DIR%%";
-    allow.mount.zfs;
+    allow.mount.zfs = 1;
 
     ## Script execution
-    exec.timeout=90;
+    exec.timeout = 90;
 
     # Pre-/Post-Scripts
     exec.prestart  += "logger trying to start jail %%JAIL_NAME%% ...";

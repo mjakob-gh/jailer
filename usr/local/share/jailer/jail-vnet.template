@@ -1,10 +1,11 @@
 %%JAIL_NAME%% {
     # Hostname
-    host.hostname = "%%JAIL_NAME%%.local";
-    host.hostuuid = "%%JAIL_UUID%%";
+    host.hostname   = "%%JAIL_NAME%%";
+    host.domainname = "%%JAIL_DOMAINNAME%%";
+    host.hostuuid   = "%%JAIL_UUID%%";
 
     # Network
-    vnet;
+    vnet = 1;
     vnet.interface = "epair%%INTERFACE_ID%%b";
 
     exec.prestart += "ifconfig epair%%INTERFACE_ID%% create up";
@@ -27,13 +28,13 @@
     sysvshm = new;
 
     path = "%%JAIL_DIR%%";
-    allow.mount.zfs;
+    allow.mount.zfs = 1;
 
     ## Script execution
     exec.timeout = 90;
 
     # Pre-/Post-Scripts
-    exec.prestart  += "logger trying to start jail %%JAIL_NAME%%...";
+    exec.prestart  += "logger trying to start jail %%JAIL_NAME%% ...";
     exec.poststart += "logger jail %%JAIL_NAME%% has started";
     exec.prestop   += "logger shutting down jail %%JAIL_NAME%%";
     exec.poststop  += "logger jail %%JAIL_NAME%% has shut down";
