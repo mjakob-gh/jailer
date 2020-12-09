@@ -64,6 +64,7 @@ list running jails
 jailer list
 ```
 control jails (```start|stop|restart [jailname]```)
+
 stop all:
 ```shell
 jailer stop
