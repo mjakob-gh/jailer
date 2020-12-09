@@ -389,10 +389,10 @@ check_dataset()
 #
 create_dataset()
 {
-    if [ "${ZFS_COMPRESSION}" = "YES" ] ; then
-        COMPRESS="on"
-    else
+    if [ "${ZFS_COMPRESSION}" = "NO" ] ; then
         COMPRESS="off"
+    else
+        COMPRESS="on"
     fi
     
     printf "${BLUE}INFO:${ANSI_END}    create zfs dataset: ${BOLD}${WHITE}%s${ANSI_END}\n" "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
@@ -797,7 +797,7 @@ update_jail()
 get_info()
 {
     printf "${BLUE}Host configuration${ANSI_END}\n"
-    printf "Jail dataset:      ${WHITE}%s${ANSI_END}\n" "${JAIL_DATASET_ROOT}"
+    printf "Jail dataset:      ${WHITE}%s${ANSI_END} mounted on ${WHITE}%s${ANSI_END}\n" "${JAIL_DATASET_ROOT}" "$( zfs get -H -o value mountpoint ${JAIL_DATASET_ROOT} )"
     printf "Jails enabled:     ${WHITE}%s${ANSI_END}\n" "$( sysrc -n jail_enable )"
     printf "ABI version:       ${WHITE}%s${ANSI_END}\n" "${ABI_VERSION}"
     printf "Timezone:          ${WHITE}%s${ANSI_END}\n" "${TIME_ZONE}"
