@@ -6,7 +6,7 @@
 ########################
 
 # remove comment for "Debug" mode
-set -x
+#set -x
 
 # jailer configuration file
 JAILER_CONF="/usr/local/etc/jailer.conf"
@@ -114,11 +114,29 @@ checkResult ()
 #
 get_args()
 {
-    while getopts "i:t:r:n:P:c:a:e:lmvbpsq" option
+    while getopts "a:c:e:i:n:P:r:t:blmpqsv" option
     do
         case $option in
-            l)
-                USE_PAGER="YES"
+            a)
+                if [ ! X"${OPTARG}" = "X" ]; then
+                    ABI_VERSION=${OPTARG}
+                else
+                    printf "${BLUE}INFO:${ANSI_END}    no ABI VERSION specified, using default ${BOLD}${WHITE}%s${ANSI_END}\n." "${ABI_VERSION}"
+                fi
+                ;;
+            b)
+                BASE_UPDATE=true
+                ;;
+            c)
+                if [ ! X"${OPTARG}" = "X" ]; then
+                    COPY_FILES=${OPTARG}
+                    printf "${BLUE}INFO:${ANSI_END}    Copying files: ${BOLD}${WHITE}%s${ANSI_END}\n." "${COPY_FILES}"
+                fi
+                ;;
+            e)
+                if [ ! X"${OPTARG}" = "X" ]; then
+                    SERVICES=${OPTARG}
+                fi
                 ;;
             i)
                 if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
@@ -128,20 +146,8 @@ get_args()
                     exit 2
                 fi
                 ;;
-            t)
-                if [ ! X"${OPTARG}" = "X" ]; then
-                    TIME_ZONE=${OPTARG}
-                else
-                    printf "${BLUE}INFO:${ANSI_END}    no timezone specified, using default ${BOLD}${WHITE}%s${ANSI_END}\n." "${TIME_ZONE}"
-                fi
-                ;;
-            r)
-                if [ ! X"${OPTARG}" = "X" ]; then
-                    REPO_NAME=${OPTARG}
-                    check_repo
-                else
-                    printf "${BLUE}INFO:${ANSI_END}    no repository specified, using default ${BOLD}${WHITE}%s${ANSI_END}\n." "${REPO_NAME}"
-                fi
+            l)
+                USE_PAGER="YES"
                 ;;
             m)
                 MINIJAIL=true
@@ -154,6 +160,9 @@ get_args()
                     exit 2
                 fi
                 ;;
+            p)
+                PKG_UPDATE=true
+                ;;
             P)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     PKGS=${OPTARG}
@@ -161,39 +170,30 @@ get_args()
                     printf "${BLUE}INFO:${ANSI_END}    no packages specified.\n"
                 fi
                 ;;
-            c)
+            r)
                 if [ ! X"${OPTARG}" = "X" ]; then
-                    COPY_FILES=${OPTARG}
-                    printf "${BLUE}INFO:${ANSI_END}    Copying files: ${BOLD}${WHITE}%s${ANSI_END}\n." "${COPY_FILES}"
-                fi
-                ;;
-            a)
-                if [ ! X"${OPTARG}" = "X" ]; then
-                    ABI_VERSION=${OPTARG}
+                    REPO_NAME=${OPTARG}
+                    check_repo
                 else
-                    printf "${BLUE}INFO:${ANSI_END}    no ABI VERSION specified, using default ${BOLD}${WHITE}%s${ANSI_END}\n." "${ABI_VERSION}"
+                    printf "${BLUE}INFO:${ANSI_END}    no repository specified, using default ${BOLD}${WHITE}%s${ANSI_END}\n." "${REPO_NAME}"
                 fi
                 ;;
-            e)
+            q)
+                PKG_QUIET="--quiet"
+                ;;
+            s)
+                AUTO_START=true
+                ;;
+            t)
                 if [ ! X"${OPTARG}" = "X" ]; then
-                    SERVICES=${OPTARG}
+                    TIME_ZONE=${OPTARG}
+                else
+                    printf "${BLUE}INFO:${ANSI_END}    no timezone specified, using default ${BOLD}${WHITE}%s${ANSI_END}\n." "${TIME_ZONE}"
                 fi
                 ;;
             v)
                 JAIL_TEMPLATE="jail-vnet.template"
                 VNET=true
-                ;;
-            b)
-                BASE_UPDATE=true
-                ;;
-            p)
-                PKG_UPDATE=true
-                ;;
-            s)
-                AUTO_START=true
-                ;;
-            q)
-                PKG_QUIET="--quiet"
                 ;;
             *)
              
