@@ -799,6 +799,7 @@ get_info()
     printf "${BLUE}Host configuration${ANSI_END}\n"
     printf "Jail dataset:      ${WHITE}%s${ANSI_END}\n" "${JAIL_DATASET_ROOT}"
     printf "Jails enabled:     ${WHITE}%s${ANSI_END}\n" "$( sysrc -n jail_enable )"
+    printf "ABI version:       ${WHITE}%s${ANSI_END}\n" "${ABI_VERSION}"
     printf "Timezone:          ${WHITE}%s${ANSI_END}\n" "${TIME_ZONE}"
     echo   ""
     printf "${BLUE}Network configuration${ANSI_END}\n"
