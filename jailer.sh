@@ -333,7 +333,7 @@ validate_setup()
 {
     # only root can start the programm
     if [ "$( id -u )" -ne 0 ]; then
-        printf "${RED}ERROR:${ANSI_END}   must run as root!\n"
+        printf "${RED}ERROR:${ANSI_END}   ${PGM} must run as root!\n"
         exit "${FAILURE}"
     fi
 
@@ -433,8 +433,8 @@ install_baseos_pkg()
         esac
     fi
 
-    printf "${BLUE}INFO:${ANSI_END}    using repository: ${BOLD}${WHITE}%s${ANSI_END}\n" "${REPO_NAME}" | tee -a "${LOG_FILE}"
-    printf "${BLUE}INFO:${ANSI_END}    install pkgbase: ${BOLD}${WHITE}%s %s${ANSI_END}\n" "${CORE_PKGS}" "${EXTRA_PKGS}" | tee -a "${LOG_FILE}"
+    printf "${BLUE}INFO:${ANSI_END}    using repository: ${BOLD}${WHITE}%s${ANSI_END}\n" "${REPO_NAME}"
+    printf "${BLUE}INFO:${ANSI_END}    install pkgbase: ${BOLD}${WHITE}%s %s${ANSI_END}\n" "${CORE_PKGS}" "${EXTRA_PKGS}"
     echo   ""
 
     # Install the base system
@@ -442,7 +442,6 @@ install_baseos_pkg()
     # the packages must be passed to pkg as multiple parameters, so dont use quotes and ignore the shellcheck error
     # shellcheck disable=SC2086
     pkg --rootdir "${JAIL_DIR}" -o ASSUME_ALWAYS_YES=true -o ABI="${ABI_VERSION}" install ${PKG_QUIET} --repository "${REPO_NAME}" ${CORE_PKGS} ${EXTRA_PKGS} | tee -a "${LOG_FILE}"
-
     pkg --rootdir "${JAIL_DIR}" -o ASSUME_ALWAYS_YES=true clean | tee -a "${LOG_FILE}"
     echo ""
 
@@ -469,8 +468,6 @@ install_pkgs()
 {
     if [ ! X"${PKGS}" = "X" ]; then
         printf "${BLUE}INFO:${ANSI_END}    Install pkgs:\n"
-        echo "-------------"
-
         # install the pkg package
         install_pkgtool
 
@@ -495,11 +492,10 @@ enable_services()
 {
     if [ ! X"${SERVICES}" = "X" ]; then
         printf "${BLUE}INFO:${ANSI_END}    Enabling Services:\n"
-        echo "------------------"
         for SERVICE in ${SERVICES}
         do
             printf "${BLUE}INFO:${ANSI_END}    ${BOLD}${WHITE}%s${ANSI_END}\n" "${SERVICE}"
-            service -j "${JAIL_NAME}" "${SERVICE}" enable
+            service -j "${JAIL_NAME}" "${SERVICE}" enable > /dev/null
         done
         echo ""
     fi
@@ -512,8 +508,6 @@ copy_files()
 {
     if [ ! X"${COPY_FILES}" = "X" ]; then
         printf "${BLUE}INFO:${ANSI_END}    Copying files:\n"
-        echo "--------------"
-
         OLDIFS=$IFS
         IFS=","
 
@@ -536,7 +530,6 @@ copy_files()
 #
 get_next_interface_id()
 {
-    #LAST_ID=$(gt.interface /etc/jail.conf | sed -e 's/[[:space:]]*vnet.interface[[:space:]]*=[[:space:]]*"e//g' -e 's/b_[[:alnum:]]*\";//g' | sort -n | tail -1)
     LAST_ID=$(ifconfig | awk '/IFID/{gsub("IFID=","",$2); print $2}' | sort -n | tail -1)
     if [ ! X"${LAST_ID}" = "X" ]; then
         NEXT_ID=$(( LAST_ID + 1 ))
@@ -553,7 +546,7 @@ create_jailconf_entry()
 {
     get_next_interface_id
 
-    printf "${BLUE}INFO:${ANSI_END}    add jail configuration to ${BOLD}${WHITE}%s${ANSI_END}\n" "${JAIL_CONF}" | tee -a "${LOG_FILE}"
+    printf "${BLUE}INFO:${ANSI_END}    add jail configuration to ${BOLD}${WHITE}%s${ANSI_END}\n" "${JAIL_CONF}"
 
     sed -e "s|%%JAIL_NAME%%|${JAIL_NAME}|g"             \
         -e "s|%%JAIL_DOMAINNAME%%|${JAIL_DOMAINNAME}|g" \
@@ -572,13 +565,13 @@ create_jailconf_entry()
 #
 setup_system()
 {
-    printf "${BLUE}INFO:${ANSI_END}    setup jail: ${BOLD}${WHITE}%s${ANSI_END}\n" "${JAIL_NAME}" | tee -a "${LOG_FILE}"
+    printf "${BLUE}INFO:${ANSI_END}    setup jail: ${BOLD}${WHITE}%s${ANSI_END}\n" "${JAIL_NAME}"
     # add some default values for /etc/rc.conf
     # but first create the file, so sysrc wont show an error
     touch "${JAIL_DIR}/etc/rc.conf"
 
     # System
-    printf "${BLUE}INFO:${ANSI_END}    configure syslog: ${BOLD}${WHITE}syslogd_flags: -s -> -ss${ANSI_END}\n" | tee -a "${LOG_FILE}"
+    printf "${BLUE}INFO:${ANSI_END}    configure syslog: ${BOLD}${WHITE}syslogd_flags: -s -> -ss${ANSI_END}\n"
     sysrc -R "${JAIL_DIR}" syslogd_flags="-ss" > /dev/null
 
     # remove /boot directory, not needed in a jail
@@ -597,11 +590,11 @@ setup_system()
     fi
 
     # set timezone in jail
-    printf "${BLUE}INFO:${ANSI_END}    setup timezone: ${BOLD}${WHITE}%s${ANSI_END}\n" "${TIME_ZONE}" | tee -a "${LOG_FILE}"
+    printf "${BLUE}INFO:${ANSI_END}    setup timezone: ${BOLD}${WHITE}%s${ANSI_END}\n" "${TIME_ZONE}"
     tzsetup -sC "${JAIL_DIR}" "${TIME_ZONE}"
 
     # Network
-    printf "${BLUE}INFO:${ANSI_END}    add nameserver: ${BOLD}${WHITE}%s${ANSI_END}\n" "${NAME_SERVER}" | tee -a "${LOG_FILE}"
+    printf "${BLUE}INFO:${ANSI_END}    add nameserver: ${BOLD}${WHITE}%s${ANSI_END}\n" "${NAME_SERVER}"
     echo "nameserver ${NAME_SERVER}" > "${JAIL_DIR}/etc/resolv.conf"
 
     if [ ${VNET} = "true" ]; then
@@ -641,8 +634,7 @@ setup_repository()
 
     printf "${BLUE}INFO:${ANSI_END}    enable repository: ${BOLD}${WHITE}%s${ANSI_END}\n" "${REPO_NAME}"
     if [ -f "${TEMPLATE_DIR}/FreeBSD-repo.conf.template" ]; then
-        sed \
-            -e "s|%%REPO_NAME%%|${REPO_NAME}|g"  \
+        sed -e "s|%%REPO_NAME%%|${REPO_NAME}|g"  \
             -e "s|%%REPO_HOST%%|${REPO_HOST}|g" \
             "${TEMPLATE_DIR}/FreeBSD-repo.conf.template" >> "${JAIL_DIR}/usr/local/etc/pkg/repos/${REPO_NAME}.conf"
     else
@@ -657,11 +649,11 @@ setup_repository()
 destroy_dataset()
 {
     if check_dataset; then
-        printf "${BLUE}INFO:${ANSI_END}    Deleting dataset: ${BOLD}${WHITE}%s${ANSI_END}\n" "${JAIL_DATASET_ROOT}/${JAIL_NAME}" | tee -a "${LOG_FILE}"
+        printf "${BLUE}INFO:${ANSI_END}    Deleting dataset: ${BOLD}${WHITE}%s${ANSI_END}\n" "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
         # forcibly unmount the dataset to prevent problems
         # zfs "destroying" the dataset
         umount -f "${JAIL_DIR}"
-        zfs destroy "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
+        zfs destroy "${JAIL_DATASET_ROOT}/${JAIL_NAME}" | tee -a "${LOG_FILE}"
     else
         printf "${RED}ERROR:${ANSI_END}   no dataset ${BOLD}${WHITE}%s${ANSI_END}\n" "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
     fi
@@ -690,6 +682,9 @@ create_log_file()
 }
 
 
+#
+#
+#
 create_jail()
 {
     if [ X"${JAIL_IP}" = "X" ]; then
@@ -718,7 +713,7 @@ create_jail()
         printf "${BLUE}INFO:${ANSI_END}    "
         service jail start "${JAIL_NAME}"
 	if [ "$(sysrc -n pf_enable)" = "YES" ]; then
-            service pf reload
+            service pf reload > /dev/null
 	fi
 
         # install additional packages
@@ -740,6 +735,9 @@ create_jail()
     fi
 }
 
+#
+#
+#
 destroy_jail()
 {
     JAIL_DIR="$( zfs get -H -o value mountpoint "${JAIL_DATASET_ROOT}" )/${JAIL_NAME}"
@@ -748,7 +746,7 @@ destroy_jail()
         printf "${RED}ERROR:${ANSI_END}   jail ${BOLD}${WHITE}%s${ANSI_END} does not exist!\n" "${JAIL_NAME}"
         exit 2
     elif ! check_dataset; then
-        printf "${RED}ERROR:${ANSI_END}   dataset ${BOLD}${WHITE}%s${ANSI_END}  does not exist!\n" "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
+        printf "${RED}ERROR:${ANSI_END}   dataset ${BOLD}${WHITE}%s${ANSI_END} does not exist!\n" "${JAIL_DATASET_ROOT}/${JAIL_NAME}"
         exit 2
     else
         printf "${BLUE}INFO:${ANSI_END}    "
@@ -772,7 +770,6 @@ update_jail()
 
     if [ "${BASE_UPDATE}" = "true" ]; then
         printf "${BLUE}INFO:${ANSI_END}    Updating system\n"
-        echo "---------------"
         set -o pipefail
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true update  --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true upgrade --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
@@ -782,7 +779,6 @@ update_jail()
 
     if [ ${PKG_UPDATE} = "true" ]; then
         printf "${BLUE}INFO:${ANSI_END}    Updating packages\n"
-        echo "---------------------------------"
         set -o pipefail
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
@@ -801,26 +797,23 @@ update_jail()
 get_info()
 {
     printf "${BLUE}Host configuration${ANSI_END}\n"
-    printf "${BLUE}-------------------------------${ANSI_END}\n"
-    printf "Jail dataset:      %s\n" "${JAIL_DATASET_ROOT}"
-    printf "Jails enabled:     %s\n" "$( sysrc -n jail_enable )"
-    printf "Timezone:          %s\n" "${TIME_ZONE}"
+    printf "Jail dataset:      ${WHITE}%s${ANSI_END}\n" "${JAIL_DATASET_ROOT}"
+    printf "Jails enabled:     ${WHITE}%s${ANSI_END}\n" "$( sysrc -n jail_enable )"
+    printf "Timezone:          ${WHITE}%s${ANSI_END}\n" "${TIME_ZONE}"
     echo   ""
     printf "${BLUE}Network configuration${ANSI_END}\n"
-    printf "${BLUE}-------------------------------${ANSI_END}\n"
-    printf "Firewall enabled:  %s\n" "$( sysrc -n pf_enable )"
-    printf "Network interface: %s\n" "${JAIL_INTERFACE}"
-    printf "VNET bridge:       %s\n" "${BRIDGE}"
-    printf "VNET gateway:      %s\n" "${GATEWAY}"
-    printf "Nameserver:        %s\n" "${NAME_SERVER}"
+    printf "Firewall enabled:  ${WHITE}%s${ANSI_END}\n" "$( sysrc -n pf_enable )"
+    printf "Network interface: ${WHITE}%s${ANSI_END}\n" "${JAIL_INTERFACE}"
+    printf "VNET bridge:       ${WHITE}%s${ANSI_END}\n" "${BRIDGE}"
+    printf "VNET gateway:      ${WHITE}%s${ANSI_END}\n" "${GATEWAY}"
+    printf "Nameserver:        ${WHITE}%s${ANSI_END}\n" "${NAME_SERVER}"
     echo   ""
     printf "${BLUE}Jailer configuration${ANSI_END}\n"
-    printf "${BLUE}-------------------------------${ANSI_END}\n"
-    printf "Jailer version:    %s\n" "${VERSION}"
-    printf "Jailer repos:      %s\n" "$( grep -h -B 10 "enabled: yes" /usr/local/etc/pkg/repos/FreeBSD-*base*.conf | grep ": {" | awk -F":" '{printf $1 " "}' )"
-    printf "Template dir:      %s\n" "${TEMPLATE_DIR}"
-    printf "Jailer templates:  %s\n" "$( find "${JAILER_TEMPLATE_DIR}" -type f -name 'jail*.template' -exec basename {} \; | awk '{printf $1 " "}' )"
-    printf "ZFS compression:   %s\n" "${ZFS_COMPRESSION}"
+    printf "Jailer version:    ${WHITE}%s${ANSI_END}\n" "${VERSION}"
+    printf "Jailer repos:      ${WHITE}%s${ANSI_END}\n" "$( grep -h -B 10 "enabled: yes" /usr/local/etc/pkg/repos/FreeBSD-*base*.conf | grep ": {" | awk -F":" '{printf $1 " "}' )"
+    printf "Template dir:      ${WHITE}%s${ANSI_END}\n" "${TEMPLATE_DIR}"
+    printf "Jailer templates:  ${WHITE}%s${ANSI_END}\n" "$( find "${JAILER_TEMPLATE_DIR}" -type f -name 'jail*.template' -exec basename {} \; | awk '{printf $1 " "}' )"
+    printf "ZFS compression:   ${WHITE}%s${ANSI_END}\n" "${ZFS_COMPRESSION}"
 }
 
 ACTION="$1"
