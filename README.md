@@ -35,7 +35,7 @@ jailer help
 ```
 
 ## Examples
-Create jails
+### Create jails
 * create a pkgbase jail with the IP and start it directly (```-s```):
 ```shell
 jailer create j1 -i 192.168.0.101 -s
@@ -52,12 +52,12 @@ jailer create j3 -i 192.168.0.103 -s -m
 ```shell
 jailer create j4 -i 192.168.0.104 -s -m -P "nginx" -e "nginx"
 ```
-Update jails
+### Update jails
 * update a jail base (```-b```), the installed packages (```-p```) and restart it:
 ```shell
 jailer update j1 -b -p -s
 ```
-Destroy jails
+### Destroy jails
 * remove a created jail
 ```shell
 jailer destroy j4
@@ -66,8 +66,7 @@ jailer destroy j4
 ```shell
 jailer list
 ```
-
-control jails (```start|stop|restart [jailname]```)
+### control jails (```start|stop|restart [jailname]```)
 * stop all jails
 ```shell
 jailer stop
