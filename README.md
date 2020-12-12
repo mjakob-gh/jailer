@@ -8,7 +8,7 @@ You can, of course, change the names of paths, names, etc. but dont forget to us
 
 clone the repository to the directory jailer:
 ```shell
-git clone https://github.com/mjakob-gh/jailer.git .
+git clone https://github.com/mjakob-gh/jailer.git jailer
 ```
 copy files an directories to their places:
 ```shell
