@@ -35,45 +35,48 @@ jailer help
 ```
 
 ## Examples
-create a pkgbase jail with the IP and start it directly (```-s```):
+Create jails
+* create a pkgbase jail with the IP and start it directly (```-s```):
 ```shell
 jailer create j1 -i 192.168.0.101 -s
 ```
-create another pkbase jail with a VNET network (```-v```):
+* create another pkbase jail with a VNET network (```-v```):
 ```shell
 jailer create j2 -i 192.168.0.102 -s -v
 ```
-create and start a jail with the basecore (```-m```) pkg:
+* create and start a jail with the basecore (```-m```) pkg:
 ```shell
 jailer create j3 -i 192.168.0.103 -s -m
 ```
-create and start a basecore jail, install (```-P```) and enable (```-e```) the nginx webserver:
+* create and start a basecore jail, install (```-P```) and enable (```-e```) the nginx webserver:
 ```shell
 jailer create j4 -i 192.168.0.104 -s -m -P "nginx" -e "nginx"
 ```
-update a jail base (```-b```), the installed packages (```-p```) and restart it:
+Update jails
+* update a jail base (```-b```), the installed packages (```-p```) and restart it:
 ```shell
 jailer update j1 -b -p -s
 ```
-remove a created jail
+Destroy jails
+* remove a created jail
 ```shell
 jailer destroy j4
 ```
-list running jails
+* list running jails
 ```shell
 jailer list
 ```
-control jails (```start|stop|restart [jailname]```)
 
-stop all jails
+control jails (```start|stop|restart [jailname]```)
+* stop all jails
 ```shell
 jailer stop
 ```
-stop jail j1
+* stop jail j1
 ```shell
 jailer stop j1
 ```
-restart jail j2
+* restart jail j2
 ```shell
 jailer restart j2
 ```
