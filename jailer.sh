@@ -794,6 +794,53 @@ update_jail()
 #
 #
 #
+start_jail()
+{
+    if [ "$1" = "" ] ; then
+        printf "${BLUE}INFO:${ANSI_END}    "
+        service jail start
+    else
+        printf "${BLUE}INFO:${ANSI_END}    "
+        service jail start "$1"
+    fi
+    if [ "$(sysrc -n pf_enable)" = "YES" ]; then
+        printf "${BLUE}INFO:${ANSI_END}    "
+        service pf reload
+    fi
+}
+
+#
+#
+#
+stop_jail()
+{
+    if [ "$1" = "" ] ; then
+        printf "${BLUE}INFO:${ANSI_END}    "
+        service jail stop
+    else
+        printf "${BLUE}INFO:${ANSI_END}    "
+        service jail stop "$1"
+    fi
+    if [ "$(sysrc -n pf_enable)" = "YES" ]; then
+        printf "${BLUE}INFO:${ANSI_END}    "
+        service pf reload
+    fi
+}
+
+#
+#
+#
+reload_pf()
+{
+    if [ "$(sysrc -n pf_enable)" = "YES" ]; then
+        printf "${BLUE}INFO:${ANSI_END}    "
+        service pf reload
+    fi
+}
+
+#
+#
+#
 get_info()
 {
     printf "${BLUE}Host configuration${ANSI_END}\n"
@@ -864,45 +911,29 @@ case "${ACTION}" in
         update_jail
         if [ "${AUTO_START}" = "true" ]; then
             printf "${BLUE}INFO:${ANSI_END}    "
-            service jail restart "${JAIL_NAME}"
+            service jail stop "${JAIL_NAME}"
+            printf "${BLUE}INFO:${ANSI_END}    "
+            service jail start "${JAIL_NAME}"
         fi
         ;;
     list)
         jls -h -N jid name ip4.addr host.hostname vnet osrelease path | column -t
         ;;
     start)
-        if [ "${JAIL_NAME}" = "" ] ; then
-            printf "${BLUE}INFO:${ANSI_END}    "
-            service jail start
-        else
-            printf "${BLUE}INFO:${ANSI_END}    "
-            service jail start "${JAIL_NAME}"
-        fi
-
-	if [ "$(sysrc -n pf_enable)" = "YES" ]; then
-            service pf reload
-	fi
+        start_jail "${JAIL_NAME}"
+        reload_pf
         ;;
     stop)
-        if [ "${JAIL_NAME}" = "" ] ; then
-            printf "${BLUE}INFO:${ANSI_END}    "
-            service jail stop
-        else
-            printf "${BLUE}INFO:${ANSI_END}    "
-            service jail stop "${JAIL_NAME}"
-        fi
-        if [ "$(sysrc -n pf_enable)" = "YES" ]; then
-            printf "${BLUE}INFO:${ANSI_END}    "
-            service pf reload
-        fi
+        stop_jail "${JAIL_NAME}"
+        reload_pf
         ;;
     restart)
-        printf "${BLUE}INFO:${ANSI_END}    "
-        service jail restart "${JAIL_NAME}"
-	if [ "$(sysrc -n pf_enable)" = "YES" ]; then
-            printf "${BLUE}INFO:${ANSI_END}    "
-            service pf reload
-	fi
+        stop_jail "${JAIL_NAME}"
+        start_jail "${JAIL_NAME}"
+        reload_pf
+        ;;
+    reloadpf)
+        reload_pf
         ;;
     *)
         printf "${RED}ERROR:${ANSI_END}   invalid command ${BOLD}${WHITE}%s${ANSI_END}!\n" "${ACTION}"
