@@ -1,9 +1,9 @@
 # jailer
 
-A script to build FreeBSD jails from pkgbase (see https://github.com/mjakob-gh/build-freebsd-system) or basecore (see https://github.com/mjakob-gh/create-basecore-pkg).
+A script to build FreeBSD jails from pkgbase (see https://github.com/mjakob-gh/build-freebsd-system) or basecore (see https://github.com/mjakob-gh/create-basecore-pkg) package(s).
 
 ## Installation
-Make sure, you have access to a pkgbase and/or basecore repository an it is/they are enabled (```pkg -vv```).
+Make sure, you have access to a pkgbase and/or basecore repository and it is/they are enabled (```pkg -vv```).
 You can, of course, change the names of paths, names, etc. but dont forget to use the correct ones in ```/usr/local/etc/jailer.conf```
 
 clone the repository to the directory jailer:
@@ -23,7 +23,7 @@ create a dataset for the jails
 ```shell
 zfs create -o compress=lz4 -o mountpoint=/jails zroot/jails
 ```
-edit the configuration file and change the entries to your environment:
+edit the configuration file and adapt the entries to your environment:
 ```shell
 vi /usr/local/etc/jailer.conf
 ```
