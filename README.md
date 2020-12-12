@@ -47,15 +47,15 @@ create and start a jail with the basecore (```-m```) pkg:
 ```shell
 jailer create j3 -i 192.168.0.103 -s -m
 ```
-create and start a basecore jail, install (```-P) and enable (```-e```) the nginx webserver:
+create and start a basecore jail, install (```-P```) and enable (```-e```) the nginx webserver:
 ```shell
 jailer create j4 -i 192.168.0.104 -s -m -P "nginx" -e "nginx"
 ```
-update a jail base (```-b```), installed packages (```-p```) and restart it:
+update a jail base (```-b```), the installed packages (```-p```) and restart it:
 ```shell
 jailer update j1 -b -p -s
 ```
-remove a created jail:
+remove a created jail
 ```shell
 jailer destroy j4
 ```
@@ -65,7 +65,7 @@ jailer list
 ```
 control jails (```start|stop|restart [jailname]```)
 
-stop all:
+stop all jails
 ```shell
 jailer stop
 ```
