@@ -226,26 +226,28 @@ usage()
     printf "  ${BOLD}%s shell${ANSI_END} ${UNDERLINE}jailname${ANSI_END}\n" "${PGM}"
     printf "  ${BOLD}%s shell${ANSI_END} ${UNDERLINE}jailname${ANSI_END} ${UNDERLINE}command${ANSI_END}\n" "${PGM}"
     printf "  ${BOLD}%s help${ANSI_END} [${BOLD}-l${ANSI_END}]\n" "${PGM}"
+    echo   ""
 
     ### DESCRIPTION
     printf "${BOLD}DESCRIPTION${ANSI_END}\n"
     printf "\tthe ${BOLD}%s${ANSI_END} command creates, destroys and controls FreeBSD jails build from a pkgbase or basecore repositories.\n" "${PGM}"
+    echo   ""
 
     printf "  ${BOLD}%s create jailname${ANSI_END} ${BOLD}-i${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} [${BOLD}-t${ANSI_END} ${UNDERLINE}timezone${ANSI_END} ${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END} ${BOLD}-n${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} ${BOLD}-v -P${ANSI_END} ${UNDERLINE}\"list of packages\"${ANSI_END} ${BOLD}-a${ANSI_END} ${UNDERLINE}ABI_Version${ANSI_END} ${BOLD}-e${ANSI_END} ${UNDERLINE}\"list of services\"${ANSI_END} ${BOLD}-s -q${ANSI_END}]\n" "${PGM}"
-    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-i" "ipaddress" "set IP address of jail"
+    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-i" "ipaddress" "set IP address of jail."
     echo   ""
-    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-t" "timezone" "set Timezone of jail"
+    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-t" "timezone" "set Timezone of jail."
     echo   ""
-    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-n" "ipaddress" "set DNS server IP address of jail"
+    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-n" "ipaddress" "set DNS server IP address of jail."
     echo   ""
-    printf "\t${BOLD}%s${ANSI_END} %s\t%s\n" "-v" "" "create a VNET jail"
+    printf "\t${BOLD}%s${ANSI_END} %s\t%s\n" "-v" "" "create a VNET jail."
     echo   ""
-    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-r" "reponame" "set pkg repository of jail"
+    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-r" "reponame" "set pkg repository of jail."
     echo   ""
-    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-P" "\"list of packages\"" "packages to install in the jail, the list is seperated by whitespace"
+    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-P" "\"list of packages\"" "packages to install in the jail, the list is seperated by whitespace."
     echo   ""
 
-    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-c" "\"source_file:target_file(,...)\"" "copy files INTO the jail"
+    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-c" "\"source_file:target_file(,...)\"" "copy files INTO the jail."
     echo   ""
     printf "\t\t%s\n" "NOTE:"
     printf "\t\t%s\n" " • use a comma seperated list for multiple copies"
@@ -254,22 +256,22 @@ usage()
     printf "\t\t%s\n" " • consider whitespaces in the parameter string"
     echo   ""
 
-    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-a" "ABI_Version" "set the ABI Version to match the packages to be installed to the jail"
+    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\t%s\n" "-a" "ABI_Version" "set the ABI Version to match the packages to be installed to the jail."
     echo   ""
     printf "\t\t%s\n" "NOTE: Possible values for ABI_VERSION"
     printf "\t\t%s\n" " • FreeBSD:12:amd64"
     printf "\t\t%s\n" " • FreeBSD:13:amd64"
     echo   ""
             
-    printf "\t${BOLD}%s${ANSI_END}\t%s\n" "-m" "use minijail package"
+    printf "\t${BOLD}%s${ANSI_END}\t%s\n" "-m" "use minijail package."
     echo   ""
 
-    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\tenable existing or just now installed services (see -P parameter), the list is seperated by whitespace\n" "-e" "\"list of services\""
+    printf "\t${BOLD}%s${ANSI_END} ${UNDERLINE}%s${ANSI_END}\n\t\tenable existing or just now installed services (see -P parameter), the list is seperated by whitespace.\n" "-e" "\"list of services\""
     echo   ""
 
-    printf "\t${BOLD}%s${ANSI_END}\t%s\n" "-s" "start the jail after the installation is finished"
+    printf "\t${BOLD}%s${ANSI_END}\t%s\n" "-s" "start the jail after the installation is finished."
     echo   ""
-    printf "\t${BOLD}%s${ANSI_END}\t%s\n" "-q" "dont show output of pkg"
+    printf "\t${BOLD}%s${ANSI_END}\t%s\n" "-q" "dont show output of pkg."
     echo   ""
     echo   ""
 
@@ -290,37 +292,37 @@ usage()
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}%s start${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n\t\tstart all jails, or only given ${UNDERLINE}jailname${ANSI_END}\n" "${PGM}"
+    printf "  ${BOLD}%s start${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n\t\tstart all jails, or only given ${UNDERLINE}jailname${ANSI_END}.\n" "${PGM}"
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}%s stop${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n\t\tstop all jails, or only given ${UNDERLINE}jailname${ANSI_END}\n" "${PGM}"
+    printf "  ${BOLD}%s stop${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n\t\tstop all jails, or only given ${UNDERLINE}jailname${ANSI_END}.\n" "${PGM}"
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}%s restart${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n\t\trestart all jails, or only given ${UNDERLINE}jailname${ANSI_END}\n" "${PGM}"
+    printf "  ${BOLD}%s restart${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n\t\trestart all jails, or only given ${UNDERLINE}jailname${ANSI_END}.\n" "${PGM}"
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}%s reloadpf${ANSI_END}\n\t\t%s\n" "${PGM}" "reload pf firewall rules"
+    printf "  ${BOLD}%s reloadpf${ANSI_END}\n\t\treload pf firewall rules.\n" "${PGM}"
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}%s shell${ANSI_END} ${UNDERLINE}jailname${ANSI_END}\n\t\tget shell access to given ${UNDERLINE}jailname${ANSI_END}\n" "${PGM}"
+    printf "  ${BOLD}%s shell${ANSI_END} ${UNDERLINE}jailname${ANSI_END}\n\t\tget shell access to given ${UNDERLINE}jailname${ANSI_END}.\n" "${PGM}"
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}%s exec${ANSI_END} ${UNDERLINE}jailname${ANSI_END} ${UNDERLINE}command${ANSI_END}\n\t\texecutes ${UNDERLINE}command${ANSI_END} inside the jail identified by its ${UNDERLINE}jailname${ANSI_END}\n" "${PGM}"
+    printf "  ${BOLD}%s exec${ANSI_END} ${UNDERLINE}jailname${ANSI_END} ${UNDERLINE}command${ANSI_END}\n\t\texecutes ${UNDERLINE}command${ANSI_END} inside the jail identified by its ${UNDERLINE}jailname${ANSI_END}.\n" "${PGM}"
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}%s help${ANSI_END} [${BOLD}-l${ANSI_END}]\n\t\tprint this help message\n" "${PGM}"
-    printf "\t${BOLD}%s${ANSI_END}\t%s\n" "-l" "open help message in pager"
+    printf "  ${BOLD}%s help${ANSI_END} [${BOLD}-l${ANSI_END}]\n\t\tprint this help message.\n" "${PGM}"
+    printf "\t${BOLD}%s${ANSI_END}\t%s\n" "-l" "open help message in pager.\n"
     echo   ""
 
     ### DESCRIPTION
     printf "${BOLD}DESCRIPTION${ANSI_END}\n"
-    printf "\tthe ${BOLD}%s${ANSI_END} command creates, destroys and manages FreeBSD jails. \n" "${PGM}"
+    printf "\tthe ${BOLD}%s${ANSI_END} command creates, destroys and manages FreeBSD jails.\n" "${PGM}"
     echo   ""
 
     ### FILES
@@ -330,7 +332,7 @@ usage()
 
     ### EXIT STATUS
     printf "${BOLD}EXIT STATUS${ANSI_END}\n"
-    printf "\tthe ${BOLD}%s${ANSI_END} utility exit 0 on success, 1 if problems with the installtion exists and 2 if the wrong arguments are given\n" "${PGM}"
+    printf "\tthe ${BOLD}%s${ANSI_END} utility exit 0 on success, 1 if there are problems with the installation and 2 if the wrong arguments are given.\n" "${PGM}"
     echo   ""
 
     ### SEE ALSO
@@ -354,12 +356,12 @@ validate_setup()
 
     # check if jails are enabled
     if [ ! "$( sysrc -n jail_enable )" = "YES" ] ; then
-        printf "${YELLOW}[WARN]${ANSI_END}  jails service is not enabled."
+        printf "${YELLOW}[WARN]${ANSI_END}  jails service is not enabled.\n"
     fi
 
     # check for template file
     if [ "$( find "${JAILER_TEMPLATE_DIR}" -name '*.template' | wc -l | sed 's/[[:space:]]//g' )" -eq 0 ] ; then
-        printf "${RED}[ERROR]${ANSI_END} template files \"%s/*\" do not exist!" "${JAILER_TEMPLATE_DIR}"
+        printf "${RED}[ERROR]${ANSI_END} template files \"%s/*\" do not exist!\n" "${JAILER_TEMPLATE_DIR}"
         exit ${FAILURE}
     fi
 }
@@ -576,7 +578,7 @@ create_jailconf_entry()
 }
 
 #
-# change some additional settings
+# change and do some additional things
 #
 setup_system()
 {
@@ -601,7 +603,7 @@ setup_system()
 
     # remove test files
     if [ ! X"${JAIL_DIR}" = "X" ] && [ -d "${JAIL_DIR}/usr/tests/" ]; then
-        rm -r "${JAIL_DIR:?}"/usr/tests/*
+        rm -r "${JAIL_DIR:?}/usr/tests/*"
     fi
 
     # set timezone in jail
@@ -612,12 +614,12 @@ setup_system()
     printf "${BLUE}[INFO]${ANSI_END}  add nameserver:    ${BOLD}${WHITE}%s${ANSI_END}\n" "${NAME_SERVER}"
     echo "nameserver ${NAME_SERVER}" > "${JAIL_DIR}/etc/resolv.conf"
 
+    # print the IP Adress
     if [ ${VNET} = "true" ]; then
         printf "${BLUE}[INFO]${ANSI_END}  add VNET IP:       ${BOLD}${WHITE}%s${ANSI_END}\n" "${JAIL_IP}"
-        #sysrc -R ${JAIL_DIR} =${JAIL_IP}
     fi
 
-    # Mailing
+    # configure mailing
     printf "${BLUE}[INFO]${ANSI_END}  disable mailer:    ${BOLD}${WHITE}sendmail${ANSI_END}\n"
     printf "${BLUE}[INFO]${ANSI_END}  enable mailer:     ${BOLD}${WHITE}DMA mailer${ANSI_END}\n"
     (
@@ -637,7 +639,7 @@ setup_system()
 }
 
 #
-# setup the repository
+# setup the pkg repository
 #
 setup_repository()
 {
@@ -698,7 +700,7 @@ create_log_file()
 
 
 #
-#
+# finally create the jail
 #
 create_jail()
 {
@@ -751,7 +753,7 @@ create_jail()
 }
 
 #
-#
+# remove the jail from the system
 #
 destroy_jail()
 {
@@ -773,7 +775,7 @@ destroy_jail()
 }
 
 #
-#
+# update the base jail and/or installed packages
 #
 update_jail()
 {
@@ -789,6 +791,9 @@ update_jail()
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true update  --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true upgrade --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
         set +o pipefail
+        if [ $? -lt 0 ]; then
+            printf "${RED}[ERROR]${ANSI_END} update of base failed!\n"
+        fi
         echo ""
     fi
 
@@ -798,16 +803,15 @@ update_jail()
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
         pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
         set +o pipefail
+        if [ $? -lt 0 ]; then
+            printf "${RED}[ERROR]${ANSI_END} update of the installaed packages failed!\n"
+        fi
         echo ""
-    fi
-
-    if [ $? -lt 0 ]; then
-        printf "${RED}[ERROR]${ANSI_END} installation of ${BOLD}${WHITE}%s${ANSI_END} failed!\n" "${PKG}"
     fi
 }
 
 #
-#
+# start all or a named jail
 #
 start_jail()
 {
@@ -825,7 +829,7 @@ start_jail()
 }
 
 #
-#
+# stop all or a named jail
 #
 stop_jail()
 {
@@ -843,7 +847,7 @@ stop_jail()
 }
 
 #
-#
+# reload the pf rules, if pf is active
 #
 reload_pf()
 {
@@ -854,7 +858,7 @@ reload_pf()
 }
 
 #
-#
+# print some host an jailer information
 #
 get_info()
 {
@@ -893,7 +897,7 @@ fi
 # check if jailer is setup correctly
 validate_setup
 
-# now really start the program
+# now really get going
 case "${ACTION}" in
     help)
         shift 1
