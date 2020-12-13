@@ -643,9 +643,14 @@ setup_system()
     if [ ! -d "${JAIL_DIR}/etc/mail/" ]; then
         mkdir "${JAIL_DIR}/etc/mail/"
     fi
-
     echo "sendmail  /usr/libexec/dma" >  "${JAIL_DIR}/etc/mail/mailer.conf"
     echo "mailq     /usr/libexec/dma" >> "${JAIL_DIR}/etc/mail/mailer.conf"
+
+    # enable "improved" .cshrc for root
+    cp "${JAILER_TEMPLATE_DIR}/dot.cshrc" "${JAIL_DIR}/.cshrc"
+
+    # modify motd entry
+    printf "\tGo To Jail Go directly to Jail. Do not pass GO, do not collect \$200\n\n" > ${JAIL_DIR}/etc/motd
 }
 
 #
@@ -950,7 +955,7 @@ case "${ACTION}" in
         fi
         ;;
     list)
-        jls -h -N jid name ip4.addr host.hostname vnet osrelease path | column -t
+        jls -h jid name vnet ip4.addr host.hostname osrelease path | column -t
         ;;
     start)
         start_jail "${JAIL_NAME}"
