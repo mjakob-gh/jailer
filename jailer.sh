@@ -75,7 +75,7 @@ JAIL_CONF="/etc/jail.conf"
 JAIL_IP=""
 JAIL_UUID=$( uuidgen )
 
-NAME_SERVER=$( local-unbound-control list_forwards | grep -e '^\. IN' | awk '{print $NF}' )
+NAME_SERVER=$( local-unbound-control list_forwards | awk '/^. IN/ {print $NF}' )
 
 LOG_FILE=""
 ABI_VERSION=$( pkg config abi )
