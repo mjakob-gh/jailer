@@ -233,8 +233,8 @@ usage()
     printf "  ${BOLD}${PGM} stop${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n"
     printf "  ${BOLD}${PGM} restart${ANSI_END} [${UNDERLINE}jailname${ANSI_END}]\n"
     printf "  ${BOLD}${PGM} reloadpf${ANSI_END}\n"
-    printf "  ${BOLD}${PGM} shell${ANSI_END} ${UNDERLINE}jailname${ANSI_END}\n"
-    printf "  ${BOLD}${PGM} shell${ANSI_END} ${UNDERLINE}jailname${ANSI_END} ${UNDERLINE}command${ANSI_END}\n"
+    printf "  ${BOLD}${PGM} login${ANSI_END} ${UNDERLINE}jailname${ANSI_END}\n"
+    printf "  ${BOLD}${PGM} exec${ANSI_END} ${UNDERLINE}jailname${ANSI_END} ${UNDERLINE}command${ANSI_END}\n"
     printf "  ${BOLD}${PGM} help${ANSI_END} [${BOLD}-l${ANSI_END}]\n"
     echo   ""
 
@@ -318,11 +318,11 @@ usage()
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}${PGM} shell${ANSI_END} ${UNDERLINE}jailname${ANSI_END}\n\t\tGet shell access to given ${UNDERLINE}jailname${ANSI_END}.\n"
+    printf "  ${BOLD}${PGM} login${ANSI_END} ${UNDERLINE}jailname${ANSI_END}\n\t\tLogin to ${UNDERLINE}jailname${ANSI_END} as user root.\n"
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}${PGM} exec${ANSI_END} ${UNDERLINE}jailname${ANSI_END} ${UNDERLINE}command${ANSI_END}\n\t\tExecutes ${UNDERLINE}command${ANSI_END} inside the jail identified by its ${UNDERLINE}jailname${ANSI_END}.\n"
+    printf "  ${BOLD}${PGM} exec${ANSI_END} ${UNDERLINE}jailname${ANSI_END} ${UNDERLINE}command${ANSI_END}\n\t\tExecutes ${UNDERLINE}command${ANSI_END} inside the jail ${UNDERLINE}jailname${ANSI_END}.\n"
     echo   ""
     echo   ""
 
@@ -968,7 +968,7 @@ case "${ACTION}" in
     reloadpf)
         reload_pf
         ;;
-    shell)
+    login)
         jexec -l "${JAIL_NAME}" login -f root
         ;;
     exec)
