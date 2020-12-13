@@ -969,7 +969,7 @@ case "${ACTION}" in
         reload_pf
         ;;
     shell)
-        jexec -l "${JAIL_NAME}"
+        jexec -l "${JAIL_NAME}" login -f root
         ;;
     exec)
         shift 2 
