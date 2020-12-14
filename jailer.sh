@@ -571,7 +571,7 @@ get_next_interface_id()
 get_freebsd_version()
 {
     # get Version data from the just installed jails "/sbin/init" file, well via file
-    JAIL_OSRELEASE=$( file ${JAIL_DIR}/sbin/init | awk '{print $14}' )
+    JAIL_OSRELEASE=$( awk '/^USERLAND_VERSION=/{gsub("USERLAND_VERSION=","",$1);gsub("\"","",$1); print $1}' "${JAIL_DIR}/bin/freebsd-version" )
     JAIL_OSRELDATE=$( file ${JAIL_DIR}/sbin/init | awk '{print $15}' | sed -e 's/(//' -e 's/)//' -e 's/,//' )
 }
 
