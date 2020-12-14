@@ -4,6 +4,9 @@
     host.domainname = "%%JAIL_DOMAINNAME%%";
     host.hostuuid   = "%%JAIL_UUID%%";
 
+    osrelease = "%%JAIL_OSRELEASE%%";
+    osreldate = "%%JAIL_OSRELDATE%%";
+
     # Network
     vnet = 1;
     vnet.interface = "epair%%INTERFACE_ID%%b";
