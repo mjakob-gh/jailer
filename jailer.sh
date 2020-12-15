@@ -556,10 +556,31 @@ copy_files()
 #
 get_next_interface_id()
 {
-    LAST_ID=$( ifconfig | awk '/IFID/{gsub("IFID=","",$2); print $2}' | sort -n | tail -1 )
-    if [ ! X"${LAST_ID}" = "X" ]; then
-        NEXT_ID=$(( LAST_ID + 1 ))
-        INTERFACE_ID=${NEXT_ID}
+    # Check for IFIDs in jail.conf AND in the network stack,
+    # to avoid unintentional duplicates
+    ID_IFCONFIG=$( ifconfig | awk '/IFID/{gsub("IFID=","",$2); print $2}' | sort -u | tail -1 )
+    ID_JAILCONF=$( awk '/IFID=/ {print $6}' /etc/jail.conf | sed 's#.IFID=##g' | sort -u | tail -1 )
+
+    # there are no IFIDs on any networkinterfaces
+    if [ -z ${ID_IFCONFIG} ] ; then
+        ID_IFCONFIG=-1
+    fi
+    # there are no IFIDs in jail.conf
+    if [ -z ${ID_JAILCONF} ] ; then
+        ID_JAILCONF=-1
+    fi
+    # so set the value to -1 to start the IFIDs with 0
+
+    # the IFIDs are identical, pick one and add 1
+    if [ ${ID_IFCONFIG} -eq ${ID_JAILCONF} ] ; then
+        INTERFACE_ID=$(( ID_IFCONFIG + 1 ))
+    # the IFID in ID_IFCONFIG is larger, so pick the larger one and add 1
+    elif [ ${ID_IFCONFIG} -gt ${ID_JAILCONF} ] ; then
+        INTERFACE_ID=$(( ID_IFCONFIG + 1 ))
+    # the IFID in ID_IFCONFIG is smaller, so pick the larger one and add 1
+    elif [ ${ID_IFCONFIG} -lt ${ID_JAILCONF} ] ; then
+        INTERFACE_ID=$(( ID_JAILCONF + 1 ))
+    # there is no yet any IFID, so start with 0
     else
         INTERFACE_ID=0
     fi
@@ -819,8 +840,8 @@ update_jail()
     if [ "${BASE_UPDATE}" = "true" ]; then
         printf "${BLUE}${INFO_STRING}${ANSI_END}Updating system\n"
         set -o pipefail
-        pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true update  --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
-        pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true upgrade --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true update  --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true upgrade --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
         set +o pipefail
         if [ $? -lt 0 ]; then
             printf "${RED}${ERROR_STRING}${ANSI_END} Update of base failed!\n"
@@ -831,8 +852,8 @@ update_jail()
     if [ ${PKG_UPDATE} = "true" ]; then
         printf "${BLUE}${INFO_STRING}${ANSI_END}Updating packages\n"
         set -o pipefail
-        pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
-        pkg -j "${JAIL_NAME}" -o ABI="${ABI_VERSION}" -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
         set +o pipefail
         if [ $? -lt 0 ]; then
             printf "${RED}${ERROR_STRING}${ANSI_END} Update of the installed packages failed!\n"
