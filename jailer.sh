@@ -103,6 +103,13 @@ INTERFACE_ID=0
 
 USE_PAGER="NO"
 
+# if domainname is not set in jailer.conf
+# set it to hosts domain.name
+# can be overwritten with the parameter -d
+if [ "${JAIL_DOMAINNAME}" = "" ] ; then
+    JAIL_DOMAINNAME=$( hostname -d )
+fi
+
 ##################################
 ## functions                    ##
 ##################################
@@ -124,14 +131,12 @@ checkResult ()
 #
 get_args()
 {
-    while getopts "a:c:e:i:n:P:r:t:blmpqsv" option
+    while getopts "a:c:d:e:h:i:n:P:r:t:blmpqsv" option
     do
         case $option in
             a)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     ABI_VERSION=${OPTARG}
-                else
-                    printf "${BLUE}${INFO_STRING}${ANSI_END}No ABI VERSION specified, using default ${BOLD}${WHITE}%s${ANSI_END}\n." "${ABI_VERSION}"
                 fi
                 ;;
             b)
@@ -140,7 +145,11 @@ get_args()
             c)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     COPY_FILES=${OPTARG}
-                    printf "${BLUE}${INFO_STRING}${ANSI_END}Copying files: ${BOLD}${WHITE}%s${ANSI_END}\n." "${COPY_FILES}"
+                fi
+                ;;
+            d)
+                if [ ! X"${OPTARG}" = "X" ]; then
+                    JAIL_DOMAINNAME=${OPTARG}
                 fi
                 ;;
             e)
@@ -148,11 +157,16 @@ get_args()
                     SERVICES=${OPTARG}
                 fi
                 ;;
+            h)
+                if [ ! X"${OPTARG}" = "X" ]; then
+                    JAIL_HOSTNAME=${OPTARG}
+                fi
+                ;;
             i)
                 if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
                     JAIL_IP=${OPTARG}
                 else
-                    printf "${RED}${ERROR_STRING}${ANSI_END} Invalid IP address ${BOLD}${WHITE}%s${ANSI_END}\n." "${OPTARG}"
+                    printf "${RED}${ERROR_STRING}${ANSI_END} Invalid IP address ${BOLD}${WHITE}${OPTARG}${ANSI_END}\n"
                     exit 2
                 fi
                 ;;
@@ -166,7 +180,7 @@ get_args()
                 if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
                     NAME_SERVER=${OPTARG}
                 else
-                    printf "${RED}${ERROR_STRING}${ANSI_END} Invalid IP address for nameserver ${BOLD}${WHITE}%s${ANSI_END}\n." "${OPTARG}"
+                    printf "${RED}${ERROR_STRING}${ANSI_END} Invalid IP address for nameserver ${BOLD}${WHITE}${OPTARG}${ANSI_END}\n"
                     exit 2
                 fi
                 ;;
@@ -185,7 +199,7 @@ get_args()
                     REPO_NAME=${OPTARG}
                     check_repo
                 else
-                    printf "${BLUE}${INFO_STRING}${ANSI_END}No repository specified, using default ${BOLD}${WHITE}${REPO_NAME}${ANSI_END}\n."
+                    printf "${BLUE}${INFO_STRING}${ANSI_END}No repository specified, using default ${BOLD}${WHITE}${REPO_NAME}${ANSI_END}\n"
                 fi
                 ;;
             q)
@@ -198,7 +212,7 @@ get_args()
                 if [ ! X"${OPTARG}" = "X" ]; then
                     TIME_ZONE=${OPTARG}
                 else
-                    printf "${BLUE}${INFO_STRING}${ANSI_END}No timezone specified, using default ${BOLD}${WHITE}${TIME_ZONE}${ANSI_END}\n."
+                    printf "${BLUE}${INFO_STRING}${ANSI_END}No timezone specified, using default ${BOLD}${WHITE}${TIME_ZONE}${ANSI_END}\n"
                 fi
                 ;;
             v)
@@ -225,7 +239,7 @@ usage()
 
     ### SYNOPSIS
     printf "${BOLD}SYNOPSIS${ANSI_END}\n"
-    printf "  ${BOLD}${PGM} create jailname${ANSI_END} ${BOLD}-i${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} [${BOLD}-t${ANSI_END} ${UNDERLINE}timezone${ANSI_END} ${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END} ${BOLD}-n${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} ${BOLD}-v -P${ANSI_END} ${UNDERLINE}\"list of packages\"${ANSI_END} ${BOLD}-a${ANSI_END} ${UNDERLINE}ABI_Version${ANSI_END} ${BOLD}-e${ANSI_END} ${UNDERLINE}\"list of services\"${ANSI_END} ${BOLD}-s -q${ANSI_END}]\n" "${PGM}"
+    printf "  ${BOLD}${PGM} create jailname${ANSI_END} ${BOLD}-i${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} [${BOLD}-h${ANSI_END} ${UNDERLINE}hostname${ANSI_END} ${BOLD}-d${ANSI_END} ${UNDERLINE}domainname${ANSI_END} ${BOLD}-t${ANSI_END} ${UNDERLINE}timezone${ANSI_END} ${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END} ${BOLD}-n${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} ${BOLD}-v -P${ANSI_END} ${UNDERLINE}\"list of packages\"${ANSI_END} ${BOLD}-a${ANSI_END} ${UNDERLINE}ABI_Version${ANSI_END} ${BOLD}-e${ANSI_END} ${UNDERLINE}\"list of services\"${ANSI_END} ${BOLD}-s -q${ANSI_END}]\n" "${PGM}"
     printf "  ${BOLD}${PGM} destroy${ANSI_END} ${UNDERLINE}jailname${ANSI_END}\n"
     printf "  ${BOLD}${PGM} update${ANSI_END} ${UNDERLINE}jailname${ANSI_END} [-${BOLD}b -p -s${ANSI_END}]\n"
     printf "  ${BOLD}${PGM} list${ANSI_END}\n"
@@ -253,6 +267,10 @@ usage()
     printf "\t${BOLD}-v${ANSI_END} \tcreate a VNET jail.\n"
     echo   ""
     printf "\t${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END}\n\t\tSet pkg repository of jail.\n"
+    echo   ""
+    printf "\t${BOLD}-h${ANSI_END} ${UNDERLINE}hostname${ANSI_END}\n\t\tSet hostname of the jail. If not set, the jailname is used.\n"
+    echo   ""
+    printf "\t${BOLD}-d${ANSI_END} ${UNDERLINE}domainname${ANSI_END}\n\t\tSet domainname of the jail. If not set, the domain of the host is used.\n"
     echo   ""
     printf "\t${BOLD}-P${ANSI_END} ${UNDERLINE}\"list of packages\"${ANSI_END}\n\t\tPackages to install in the jail, the list is seperated by whitespace.\n"
     echo   ""
@@ -604,10 +622,15 @@ create_jailconf_entry()
     get_next_interface_id
     get_freebsd_version
 
+    if [ ${JAIL_HOSTNAME} = "" ] ; then
+        JAIL_HOSTNAME=${JAIL_NAME}
+    fi
+
     printf "${BLUE}${INFO_STRING}${ANSI_END}Jail config:       ${BOLD}${WHITE}${JAIL_CONF}${ANSI_END}\n"
 
     sed -e "s|%%JAIL_NAME%%|${JAIL_NAME}|g"             \
         -e "s|%%JAIL_DOMAINNAME%%|${JAIL_DOMAINNAME}|g" \
+        -e "s|%%JAIL_HOSTNAME%%|${JAIL_HOSTNAME}|g"     \
         -e "s|%%JAIL_INTERFACE%%|${JAIL_INTERFACE}|g"   \
         -e "s|%%JAIL_UUID%%|${JAIL_UUID}|g"             \
         -e "s|%%JAIL_OSRELEASE%%|${JAIL_OSRELEASE}|g"   \
@@ -919,6 +942,7 @@ get_info()
     printf "Jails enabled:     ${WHITE}%s${ANSI_END}\n" "$( sysrc -n jail_enable )"
     printf "ABI version:       ${WHITE}${ABI_VERSION}${ANSI_END}\n"
     printf "Timezone:          ${WHITE}${TIME_ZONE}${ANSI_END}\n"
+    printf "Domainname:        ${WHITE}%s${ANSI_END}\n" "$( hostname -d )"
     echo   ""
     printf "${BLUE}Network configuration${ANSI_END}\n"
     printf "Firewall enabled:  ${WHITE}%s${ANSI_END}\n" "$( sysrc -n pf_enable )"
