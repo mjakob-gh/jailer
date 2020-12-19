@@ -706,7 +706,7 @@ setup_system()
     cp "${JAILER_TEMPLATE_DIR}/dot.cshrc" "${JAIL_DIR}/.cshrc"
 
     # repair symlinks
-    mkidr ${JAIL_DIR}/usr/include
+    mkdir ${JAIL_DIR}/usr/include
     cd ${JAIL_DIR}/usr/lib/; ln -s ../../usr/include /usr/lib/include
     cd ${JAIL_DIR}/usr/lib/; ln -s ../../lib/libncurses.so.? libncurses.so
     cd ${JAIL_DIR}/usr/lib/; ln -s ../../lib/libthr.so.? libthr.so
