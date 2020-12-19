@@ -715,7 +715,15 @@ setup_system()
     cd "${JAIL_DIR}/usr/lib/"; ln -s libncurses.so libcurses.so
 
     # modify motd entry
-    printf "\tGo directly to Jail. Do not pass GO, do not collect \$200\n\n" > "${JAIL_DIR}/etc/motd"
+    # FreeBSD 13 has changed the motd mechanism
+    if [ -f "${JAIL_DIR}/etc/motd.template" ] ; then
+        MOTD_FILE="${JAIL_DIR}/etc/motd.template"
+    # FreeBSD 12 has a classic /etc/motd file
+    else
+        MOTD_FILE="${JAIL_DIR}/etc/motd"
+    fi
+
+    printf "\tGo directly to Jail. Do not pass GO, do not collect \$200\n\n" > "${MOTD_FILE}"
 }
 
 #
