@@ -580,11 +580,11 @@ get_next_interface_id()
     ID_JAILCONF=$( awk '/IFID=/ {print $6}' /etc/jail.conf | sed 's#.IFID=##g' | sort -u | tail -1 )
 
     # there are no IFIDs on any networkinterfaces
-    if [ -z ${ID_IFCONFIG} ] ; then
+    if [ -z "${ID_IFCONFIG}" ] ; then
         ID_IFCONFIG=-1
     fi
     # there are no IFIDs in jail.conf
-    if [ -z ${ID_JAILCONF} ] ; then
+    if [ -z "${ID_JAILCONF}" ] ; then
         ID_JAILCONF=-1
     fi
     # so set the value to -1 to start the IFIDs with 0
@@ -611,7 +611,7 @@ get_freebsd_version()
 {
     # get Version data from the just installed jails "/sbin/init" file, well via file
     JAIL_OSRELEASE=$( awk '/^USERLAND_VERSION=/{gsub("USERLAND_VERSION=","",$1);gsub("\"","",$1); print $1}' "${JAIL_DIR}/bin/freebsd-version" )
-    JAIL_OSRELDATE=$( file ${JAIL_DIR}/sbin/init | awk '{print $15}' | sed -e 's/(//' -e 's/)//' -e 's/,//' )
+    JAIL_OSRELDATE=$( file "${JAIL_DIR}/sbin/init" | awk '{print $15}' | sed -e 's/(//' -e 's/)//' -e 's/,//' )
 }
 
 #
@@ -622,8 +622,8 @@ create_jailconf_entry()
     get_next_interface_id
     get_freebsd_version
 
-    if [ ${JAIL_HOSTNAME} = "" ] ; then
-        JAIL_HOSTNAME=${JAIL_NAME}
+    if [ "${JAIL_HOSTNAME}" = "" ] ; then
+        JAIL_HOSTNAME="${JAIL_NAME}"
     fi
 
     printf "${BLUE}${INFO_STRING}${ANSI_END}Jail config:       ${BOLD}${WHITE}${JAIL_CONF}${ANSI_END}\n"
@@ -706,16 +706,16 @@ setup_system()
     cp "${JAILER_TEMPLATE_DIR}/dot.cshrc" "${JAIL_DIR}/.cshrc"
 
     # repair symlinks
-    mkdir ${JAIL_DIR}/usr/include
-    cd ${JAIL_DIR}/usr/lib/; ln -s ../../usr/include /usr/lib/include
-    cd ${JAIL_DIR}/usr/lib/; ln -s ../../lib/libncurses.so.? libncurses.so
-    cd ${JAIL_DIR}/usr/lib/; ln -s ../../lib/libthr.so.? libthr.so
-    cd ${JAIL_DIR}/usr/lib/; ln -s ../../lib/libulog.so.? libulog.so
-    cd ${JAIL_DIR}/usr/lib/; ln -s ../../lib/libncursesw.so.? libncursesw.so
-    cd ${JAIL_DIR}/usr/lib/; ln -s libncurses.so libcurses.so
+    mkdir "${JAIL_DIR}/usr/include"
+    cd "${JAIL_DIR}/usr/lib/"; ln -s ../../usr/include /usr/lib/include
+    cd "${JAIL_DIR}/usr/lib/"; ln -s ../../lib/libncurses.so.? libncurses.so
+    cd "${JAIL_DIR}/usr/lib/"; ln -s ../../lib/libthr.so.? libthr.so
+    cd "${JAIL_DIR}/usr/lib/"; ln -s ../../lib/libulog.so.? libulog.so
+    cd "${JAIL_DIR}/usr/lib/"; ln -s ../../lib/libncursesw.so.? libncursesw.so
+    cd "${JAIL_DIR}/usr/lib/"; ln -s libncurses.so libcurses.so
 
     # modify motd entry
-    printf "\tGo directly to Jail. Do not pass GO, do not collect \$200\n\n" > ${JAIL_DIR}/etc/motd
+    printf "\tGo directly to Jail. Do not pass GO, do not collect \$200\n\n" > "${JAIL_DIR}/etc/motd"
 }
 
 #
@@ -727,7 +727,7 @@ setup_repository()
     printf "${BLUE}${INFO_STRING}${ANSI_END}Enable repository: ${BOLD}${WHITE}FreeBSD${ANSI_END}\n"
 
     mkdir -p "${JAIL_DIR}/usr/local/etc/pkg/repos"
-    echo "FreeBSD: { enabled: yes }" > "${JAIL_DIR}/usr/local/etc/pkg/repos/FreeBSD.conf"
+    echo 'FreeBSD: { enabled: yes }' > "${JAIL_DIR}/usr/local/etc/pkg/repos/FreeBSD.conf"
 
     printf "${BLUE}${INFO_STRING}${ANSI_END}Enable repository: ${BOLD}${WHITE}${REPO_NAME}${ANSI_END}\n"
     if [ -f "${TEMPLATE_DIR}/FreeBSD-repo.conf.template" ]; then
