@@ -705,6 +705,15 @@ setup_system()
     # enable "improved" .cshrc for root
     cp "${JAILER_TEMPLATE_DIR}/dot.cshrc" "${JAIL_DIR}/.cshrc"
 
+    # repair symlinks
+    mkidr ${JAIL_DIR}/usr/include
+    cd ${JAIL_DIR}/usr/lib/; ln -s ../../usr/include /usr/lib/include
+    cd ${JAIL_DIR}/usr/lib/; ln -s ../../lib/libncurses.so.? libncurses.so
+    cd ${JAIL_DIR}/usr/lib/; ln -s ../../lib/libthr.so.? libthr.so
+    cd ${JAIL_DIR}/usr/lib/; ln -s ../../lib/libulog.so.? libulog.so
+    cd ${JAIL_DIR}/usr/lib/; ln -s ../../lib/libncursesw.so.? libncursesw.so
+    cd ${JAIL_DIR}/usr/lib/; ln -s libncurses.so libcurses.so
+
     # modify motd entry
     printf "\tGo directly to Jail. Do not pass GO, do not collect \$200\n\n" > ${JAIL_DIR}/etc/motd
 }
