@@ -34,9 +34,9 @@ umask 22
 
 set path = (/sbin /bin /usr/sbin /usr/bin /usr/local/sbin /usr/local/bin $HOME/bin)
 
-setenv  EDITOR          vi
-setenv  PAGER           less
-setenv  BLOCKSIZE       K
+setenv EDITOR       vi
+setenv PAGER        less
+setenv BLOCKSIZE    K
 
 setenv LESS         --RAW-CONTROL-CHARS
 
@@ -48,34 +48,36 @@ setenv LC_MESSAGES  C.UTF-8
 setenv LC_COLLATE   C.UTF-8
 
 if ($?prompt) then
-        setenv TERM xterm-256color
-        # An interactive shell -- set some stuff up
-        set prompt = "%N@%m:%~ %# "
-        set promptchars = "%#"
+    setenv TERM xterm-256color
+    # An interactive shell -- set some stuff up
+    set prompt = "%N@%m:%~ %# "
+    set promptchars = "%#"
 
-        set filec
-        set history = 1000
-        set savehist = (1000 merge)
-        set autolist = ambiguous
-        # Use history to aid expansion
-        set autoexpand
-        set autorehash
-        set mail = (/var/mail/$USER)
-        if ( $?tcsh ) then
-                bindkey "^W" backward-delete-word
-                bindkey -k up history-search-backward
-                bindkey -k down history-search-forward
-                # This maps the "Delete" key to do the right thing
-                # Pressing CTRL-v followed by the key of interest will print the shell's
-                # mapping for the key
-                bindkey "^[[3~" delete-char-or-list-or-eof
-                bindkey "^[[1~" beginning-of-line
-                bindkey "^[[4~" end-of-line
+    set filec
+    set history = 1000
+    set savehist = (1000 merge)
+    set autolist = ambiguous
+    # Use history to aid expansion
+    set autoexpand
+    set autorehash
 
-                # Make the Ins key work
-                bindkey "^[[2~" overwrite-mode
+    set mail = (/var/mail/$USER)
+    if ( $?tcsh ) then
+        bindkey "^W" backward-delete-word
+        bindkey -k up history-search-backward
+        bindkey -k down history-search-forward
 
-                # Color on many system utilities
-                setenv CLICOLOR 1
-        endif
+        # This maps the "Delete" key to do the right thing
+        # Pressing CTRL-v followed by the key of interest will print the shell's
+        # mapping for the key
+        bindkey "^[[3~" delete-char-or-list-or-eof
+        bindkey "^[[1~" beginning-of-line
+        bindkey "^[[4~" end-of-line
+
+        # Make the Ins key work
+        bindkey "^[[2~" overwrite-mode
+
+        # Color on many system utilities
+        setenv CLICOLOR 1
+    endif
 endif

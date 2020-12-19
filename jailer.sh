@@ -722,8 +722,7 @@ setup_system()
     else
         MOTD_FILE="${JAIL_DIR}/etc/motd"
     fi
-
-    printf "\tGo directly to Jail. Do not pass GO, do not collect \$200\n\n" > "${MOTD_FILE}"
+    printf "\n\t\"Go directly to Jail. Do not pass GO, do not collect \$200\"\n\n" > "${MOTD_FILE}"
 }
 
 #
