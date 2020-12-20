@@ -249,6 +249,7 @@ usage()
     printf "  ${BOLD}${PGM} reloadpf${ANSI_END}\n"
     printf "  ${BOLD}${PGM} login${ANSI_END} ${UNDERLINE}jailname${ANSI_END}\n"
     printf "  ${BOLD}${PGM} exec${ANSI_END} ${UNDERLINE}jailname${ANSI_END} ${UNDERLINE}command${ANSI_END}\n"
+    printf "  ${BOLD}${PGM} repos${ANSI_END} ${UNDERLINE}jailname${ANSI_END}\n"
     printf "  ${BOLD}${PGM} help${ANSI_END} [${BOLD}-l${ANSI_END}]\n"
     echo   ""
 
@@ -316,7 +317,7 @@ usage()
     echo   ""
     echo   ""
 
-    printf "  ${BOLD}${PGM} list${ANSI_END}\n\t\tList status of all running jails\n"
+    printf "  ${BOLD}${PGM} list${ANSI_END}\n\t\tList status of all running jails.\n"
     echo   ""
     echo   ""
 
@@ -341,6 +342,10 @@ usage()
     echo   ""
 
     printf "  ${BOLD}${PGM} exec${ANSI_END} ${UNDERLINE}jailname${ANSI_END} ${UNDERLINE}command${ANSI_END}\n\t\tExecutes ${UNDERLINE}command${ANSI_END} inside the jail ${UNDERLINE}jailname${ANSI_END}.\n"
+    echo   ""
+    echo   ""
+
+    printf "  ${BOLD}${PGM} repos${ANSI_END} ${UNDERLINE}jailname${ANSI_END}\n\t\tview the repos configured inside the jail ${UNDERLINE}jailname${ANSI_END}.\n"
     echo   ""
     echo   ""
 
@@ -1052,6 +1057,12 @@ case "${ACTION}" in
     exec)
         shift 2 
         jexec -l "${JAIL_NAME}" "$@"
+        ;;
+    repos)
+        shift 2
+        printf "Following repositories are configured in \"${JAIL_NAME}\":\n"
+        pkg -j "${JAIL_NAME}" -vv | awk '/^  .*: \{/ {gsub(":","", $1); printf  $1 " "}'
+        echo   ""
         ;;
     *)
         printf "${RED}${ERROR_STRING}${ANSI_END} Invalid command ${BOLD}${WHITE}${ACTION}${ANSI_END}!\n"
