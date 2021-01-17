@@ -717,22 +717,22 @@ setup_system()
 
     # repair symlinks
     cd "${JAIL_DIR}/usr/lib/"
-    if [ ! -L "include" ] ; then
+    if [ -d "../../usr/include" ] -a [ ! -L "include" ] ; then
         ln -s ../../usr/include include
     fi
-    if [ ! -L "libncurses.so" ] ; then
+    if [ -e ../../lib/libncurses.so.? ] -a [ ! -L "libncurses.so" ] ; then
         ln -s ../../lib/libncurses.so.? libncurses.so
     fi
-    if [ ! -L "libthr.so" ] ; then
+    if [ -e ../../lib/libthr.so.? ] -a [ ! -L "libthr.so" ] ; then
         ln -s ../../lib/libthr.so.? libthr.so
     fi
-    if [ ! -L "libulog.so" ] ; then
+    if [ -e ../../lib/libulog.so.? ] -a [ ! -L "libulog.so" ] ; then
         ln -s ../../lib/libulog.so.? libulog.so
     fi
-    if [ ! -L "libncursesw.so" ] ; then
+    if [ -e ../../lib/libncursesw.so.? ] -a [ ! -L "libncursesw.so" ] ; then
         ln -s ../../lib/libncursesw.so.? libncursesw.so
     fi
-    if [ ! -L "libcurses.so" ] ; then
+    if [ -e libncurses.so ] -a [ ! -L "libcurses.so" ] ; then
         ln -s libncurses.so libcurses.so
     fi
 
@@ -1077,7 +1077,7 @@ case "${ACTION}" in
         ;;
     repos)
         shift 2
-        printf "Following repositories are configured in \"${JAIL_NAME}\":\n"
+        printf "Following repositories are configured in ${BOLD}${WHITE}${JAIL_NAME}${ANSI_END}:\n"
         pkg -j "${JAIL_NAME}" -vv | awk '/^  .*: \{/ {gsub(":","", $1); printf  $1 " "}'
         echo   ""
         ;;
