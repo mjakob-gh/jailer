@@ -350,7 +350,7 @@ usage()
     echo   ""
 
     printf "  ${BOLD}${PGM} help${ANSI_END} [${BOLD}-l${ANSI_END}]\n\t\tPrint this help message.\n"
-    printf "\t${BOLD}%s${ANSI_END}\t%s\n" "-l" "Open help message in pager.\n"
+    printf "\t${BOLD}-l${ANSI_END}\tOpen help message in pager.\n"
     echo   ""
 
     ### DESCRIPTION
@@ -365,7 +365,7 @@ usage()
 
     ### EXIT STATUS
     printf "${BOLD}EXIT STATUS${ANSI_END}\n"
-    printf "\tThe ${BOLD}${PGM}${ANSI_END} utility exit 0 on success, 1 if there are problems with the installation and 2 if the wrong arguments are given.\n" ""
+    printf "\tThe ${BOLD}${PGM}${ANSI_END} utility exit 0 on success, 1 if there are problems with the installation and 2 if the wrong arguments are given.\n"
     echo   ""
 
     ### SEE ALSO
