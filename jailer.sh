@@ -717,22 +717,22 @@ setup_system()
 
     # repair symlinks
     cd "${JAIL_DIR}/usr/lib/"
-    if [ -d "../../usr/include" ] -a [ ! -L "include" ] ; then
+    if [ -d "../../usr/include" -a ! -L "include" ] ; then
         ln -s ../../usr/include include
     fi
-    if [ -e ../../lib/libncurses.so.? ] -a [ ! -L "libncurses.so" ] ; then
+    if [ -e ../../lib/libncurses.so.? -a ! -L "libncurses.so" ] ; then
         ln -s ../../lib/libncurses.so.? libncurses.so
     fi
-    if [ -e ../../lib/libthr.so.? ] -a [ ! -L "libthr.so" ] ; then
+    if [ -e ../../lib/libthr.so.? -a ! -L "libthr.so" ] ; then
         ln -s ../../lib/libthr.so.? libthr.so
     fi
-    if [ -e ../../lib/libulog.so.? ] -a [ ! -L "libulog.so" ] ; then
+    if [ -e ../../lib/libulog.so.? -a ! -L "libulog.so" ] ; then
         ln -s ../../lib/libulog.so.? libulog.so
     fi
-    if [ -e ../../lib/libncursesw.so.? ] -a [ ! -L "libncursesw.so" ] ; then
+    if [ -e ../../lib/libncursesw.so.? -a ! -L "libncursesw.so" ] ; then
         ln -s ../../lib/libncursesw.so.? libncursesw.so
     fi
-    if [ -e libncurses.so ] -a [ ! -L "libcurses.so" ] ; then
+    if [ -e libncurses.so -a ! -L "libcurses.so" ] ; then
         ln -s libncurses.so libcurses.so
     fi
 
