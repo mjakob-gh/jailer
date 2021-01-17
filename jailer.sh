@@ -92,13 +92,13 @@ ABI_VERSION=$( pkg config abi )
 PKGS=""
 SERVICES=""
 COPY_FILES=""
-AUTO_START=false
-BASE_UPDATE=false
-PKG_UPDATE=false
+AUTO_START="NO"
+BASE_UPDATE="NO"
+PKG_UPDATE="NO"
 PKG_QUIET=""
 
-VNET=false
-MINIJAIL=false
+VNET="NO"
+MINIJAIL="NO"
 INTERFACE_ID=0
 
 USE_PAGER="NO"
@@ -140,7 +140,7 @@ get_args()
                 fi
                 ;;
             b)
-                BASE_UPDATE=true
+                BASE_UPDATE="YES"
                 ;;
             c)
                 if [ ! X"${OPTARG}" = "X" ]; then
@@ -174,7 +174,7 @@ get_args()
                 USE_PAGER="YES"
                 ;;
             m)
-                MINIJAIL=true
+                MINIJAIL="YES"
                 ;;
             n)
                 if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
@@ -185,7 +185,7 @@ get_args()
                 fi
                 ;;
             p)
-                PKG_UPDATE=true
+                PKG_UPDATE="TRUE"
                 ;;
             P)
                 if [ ! X"${OPTARG}" = "X" ]; then
@@ -206,7 +206,7 @@ get_args()
                 PKG_QUIET="--quiet"
                 ;;
             s)
-                AUTO_START=true
+                AUTO_START="YES"
                 ;;
             t)
                 if [ ! X"${OPTARG}" = "X" ]; then
@@ -217,7 +217,7 @@ get_args()
                 ;;
             v)
                 JAIL_TEMPLATE="jail-vnet.template"
-                VNET=true
+                VNET="YES"
                 ;;
             *)
              
@@ -459,7 +459,7 @@ install_baseos_pkg()
     # create "${JAIL_DIR}/var/cache/pkg", or pkg complains
     mkdir -p "${JAIL_DIR}/var/cache/pkg" || exit 1
 
-    if [ $MINIJAIL = "true" ]; then
+    if [ $MINIJAIL = "YES" ]; then
         REPO_NAME="FreeBSD-basecore"
         CORE_PKGS="FreeBSD-basecore"
         EXTRA_PKGS=""
@@ -474,7 +474,7 @@ install_baseos_pkg()
             *13*)
                 # FreeBSD 13
                 CORE_PKGS="FreeBSD-utilities"
-                EXTRA_PKGS="FreeBSD-rc FreeBSD-dma FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at"
+                EXTRA_PKGS="FreeBSD-rc FreeBSD-dma FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at FreeBSD-zoneinfo"
                 ;;
             *)
                 printf "${RED}${ERROR_STRING}${ANSI_END} invalid OS Version detectet: ${BOLD}${WHITE}${ABI_VERSION}${ANSI_END}\n"
@@ -686,7 +686,7 @@ setup_system()
     echo "nameserver ${NAME_SERVER}" > "${JAIL_DIR}/etc/resolv.conf"
 
     # print the IP Adress
-    if [ ${VNET} = "true" ]; then
+    if [ ${VNET} = "YES" ]; then
         printf "${BLUE}${INFO_STRING}${ANSI_END}Add VNET IP:       ${BOLD}${WHITE}${JAIL_IP}${ANSI_END}\n"
     fi
 
@@ -841,7 +841,7 @@ create_jail()
         copy_files
 
         # start the jail when -s argument is set
-        if [ ${AUTO_START} = "true" ]; then
+        if [ ${AUTO_START} = "YES" ]; then
             printf "${BLUE}${INFO_STRING}${ANSI_END}"
             service jail start "${JAIL_NAME}"
         fi
@@ -875,13 +875,13 @@ destroy_jail()
 #
 update_jail()
 {
-    if [ $MINIJAIL = "true" ]; then
+    if [ $MINIJAIL = "YES" ]; then
         REPO_NAME="FreeBSD-basecore"
     fi
 
     JAIL_DIR="$( zfs get -H -o value mountpoint "${JAIL_DATASET_ROOT}" )/${JAIL_NAME}"
 
-    if [ "${BASE_UPDATE}" = "true" ]; then
+    if [ "${BASE_UPDATE}" = "YES" ]; then
         printf "${BLUE}${INFO_STRING}${ANSI_END}Updating system\n"
         set -o pipefail
         pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true update  --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
@@ -893,7 +893,7 @@ update_jail()
         echo ""
     fi
 
-    if [ ${PKG_UPDATE} = "true" ]; then
+    if [ ${PKG_UPDATE} = "YES" ]; then
         printf "${BLUE}${INFO_STRING}${ANSI_END}Updating packages\n"
         set -o pipefail
         pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
@@ -1025,7 +1025,7 @@ case "${ACTION}" in
         get_args "$@"
         create_log_file
         update_jail
-        if [ "${AUTO_START}" = "true" ]; then
+        if [ "${AUTO_START}" = "YES" ]; then
             printf "${BLUE}${INFO_STRING}${ANSI_END}"
             service jail stop "${JAIL_NAME}"
             printf "${BLUE}${INFO_STRING}${ANSI_END}"
