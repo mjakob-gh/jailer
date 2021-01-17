@@ -735,7 +735,18 @@ setup_system()
     if [ -e libncurses.so -a ! -L "libcurses.so" ] ; then
         ln -s libncurses.so libcurses.so
     fi
-
+    if [ -e libformw.so -a ! -L "libform.so" ] ; then
+        ln -s libformw.so libform.so
+    fi
+    if [ -e libpanelw.so -a ! -L "libpanel.so" ] ; then
+        ln -s libpanelw.so libpanelwso
+    fi
+    if [ -e libmenu.so -a ! -L "libmenuw.so" ] ; then
+        ln -s libmenuw.so libmenu.so
+    fi
+    if [ -e libxnet.so ] ; then
+        rm libxnet.so
+    fi    
     # modify motd entry
     # FreeBSD 13 has changed the motd mechanism
     if [ -f "${JAIL_DIR}/etc/motd.template" ] ; then
