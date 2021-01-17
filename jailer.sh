@@ -669,7 +669,7 @@ setup_system()
 
     # remove man pages
     if [ ! X"${JAIL_DIR}" = "X" ] && [ -d "${JAIL_DIR}/usr/share/man/" ]; then
-        rm -r "${JAIL_DIR:?}"/usr/share/man/*
+        rm -r "${JAIL_DIR:?}/usr/share/man/*"
     fi
 
     # remove test files
@@ -710,14 +710,31 @@ setup_system()
     # enable "improved" .cshrc for root
     cp "${JAILER_TEMPLATE_DIR}/dot.cshrc" "${JAIL_DIR}/.cshrc"
 
+    
+    if [ ! -d "${JAIL_DIR}/usr/include" ] ; then
+        mkdir "${JAIL_DIR}/usr/include"
+    fi
+
     # repair symlinks
-    mkdir "${JAIL_DIR}/usr/include"
-    cd "${JAIL_DIR}/usr/lib/"; ln -s ../../usr/include /usr/lib/include
-    cd "${JAIL_DIR}/usr/lib/"; ln -s ../../lib/libncurses.so.? libncurses.so
-    cd "${JAIL_DIR}/usr/lib/"; ln -s ../../lib/libthr.so.? libthr.so
-    cd "${JAIL_DIR}/usr/lib/"; ln -s ../../lib/libulog.so.? libulog.so
-    cd "${JAIL_DIR}/usr/lib/"; ln -s ../../lib/libncursesw.so.? libncursesw.so
-    cd "${JAIL_DIR}/usr/lib/"; ln -s libncurses.so libcurses.so
+    cd "${JAIL_DIR}/usr/lib/"
+    if [ ! -L "include" ] ; then
+        ln -s ../../usr/include include
+    fi
+    if [ ! -L "libncurses.so" ] ; then
+        ln -s ../../lib/libncurses.so.? libncurses.so
+    fi
+    if [ ! -L "libthr.so" ] ; then
+        ln -s ../../lib/libthr.so.? libthr.so
+    fi
+    if [ ! -L "libulog.so" ] ; then
+        ln -s ../../lib/libulog.so.? libulog.so
+    fi
+    if [ ! -L "libncursesw.so" ] ; then
+        ln -s ../../lib/libncursesw.so.? libncursesw.so
+    fi
+    if [ ! -L "libcurses.so" ] ; then
+        ln -s libncurses.so libcurses.so
+    fi
 
     # modify motd entry
     # FreeBSD 13 has changed the motd mechanism
