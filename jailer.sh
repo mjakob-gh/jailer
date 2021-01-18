@@ -988,6 +988,7 @@ get_info()
 {
     printf "${BLUE}Host configuration${ANSI_END}\n"
     printf "Jail dataset:      ${WHITE}${JAIL_DATASET_ROOT}${ANSI_END} mounted on ${WHITE}%s${ANSI_END}\n" "$( zfs get -H -o value mountpoint "${JAIL_DATASET_ROOT}" )"
+    printf "Disk Usage:        ${WHITE}%s${ANSI_END} used of ${WHITE}%s${ANSI_END} available\n" "$( zfs get -H -o value used "${JAIL_DATASET_ROOT}" )" "$( zfs get -H -o value avail "${JAIL_DATASET_ROOT}" )"
     printf "Jails enabled:     ${WHITE}%s${ANSI_END}\n" "$( sysrc -n jail_enable )"
     printf "ABI version:       ${WHITE}${ABI_VERSION}${ANSI_END}\n"
     printf "Timezone:          ${WHITE}${TIME_ZONE}${ANSI_END}\n"
