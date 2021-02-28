@@ -131,7 +131,7 @@ checkResult ()
 #
 get_args()
 {
-    while getopts "a:c:d:e:h:i:n:P:r:t:blmpqsv" option
+    while getopts "a:c:d:e:h:i:n:P:r:t:u:blmopqsv" option
     do
         case $option in
             a)
@@ -184,6 +184,9 @@ get_args()
                     exit 2
                 fi
                 ;;
+            o)
+                SERVICES="${SERVICES} sshd"
+                ;;
             p)
                 PKG_UPDATE="TRUE"
                 ;;
@@ -213,6 +216,11 @@ get_args()
                     TIME_ZONE=${OPTARG}
                 else
                     printf "${BLUE}${INFO_STRING}${ANSI_END}No timezone specified, using default ${BOLD}${WHITE}${TIME_ZONE}${ANSI_END}\n"
+                fi
+                ;;
+            u)
+                if [ ! X"${OPTARG}" = "X" ]; then
+                    USER_NAME=${OPTARG}
                 fi
                 ;;
             v)
@@ -715,46 +723,50 @@ setup_system()
         mkdir "${JAIL_DIR}/usr/include"
     fi
 
-    # repair symlinks
-    cd "${JAIL_DIR}/usr/lib/"
-    if [ -d "../../usr/include" -a ! -L "include" ] ; then
-        ln -s ../../usr/include include
-    fi
-    if [ -e ../../lib/libncurses.so.? -a ! -L "libncurses.so" ] ; then
-        ln -s ../../lib/libncurses.so.? libncurses.so
-    fi
-    if [ -e ../../lib/libthr.so.? -a ! -L "libthr.so" ] ; then
-        ln -s ../../lib/libthr.so.? libthr.so
-    fi
-    if [ -e ../../lib/libulog.so.? -a ! -L "libulog.so" ] ; then
-        ln -s ../../lib/libulog.so.? libulog.so
-    fi
-    if [ -e ../../lib/libncursesw.so.? -a ! -L "libncursesw.so" ] ; then
-        ln -s ../../lib/libncursesw.so.? libncursesw.so
-    fi
-    if [ -e libncurses.so -a ! -L "libcurses.so" ] ; then
-        ln -s libncurses.so libcurses.so
-    fi
-    if [ -e libformw.so -a ! -L "libform.so" ] ; then
-        ln -s libformw.so libform.so
-    fi
-    if [ -e libpanelw.so -a ! -L "libpanel.so" ] ; then
-        ln -s libpanelw.so libpanelwso
-    fi
-    if [ -e libmenu.so -a ! -L "libmenuw.so" ] ; then
-        ln -s libmenuw.so libmenu.so
-    fi
-    if [ -e libxnet.so ] ; then
-        rm libxnet.so
-    fi    
+    ## repair symlinks
+    #cd "${JAIL_DIR}/usr/lib/"
+    #if [ -d "../../usr/include" -a ! -L "include" ] ; then
+    #    ln -s ../../usr/include include
+    #fi
+    #if [ -e ../../lib/libncurses.so.? -a ! -L "libncurses.so" ] ; then
+    #    ln -s ../../lib/libncurses.so.? libncurses.so
+    #fi
+    #if [ -e ../../lib/libthr.so.? -a ! -L "libthr.so" ] ; then
+    #    ln -s ../../lib/libthr.so.? libthr.so
+    #fi
+    #if [ -e ../../lib/libulog.so.? -a ! -L "libulog.so" ] ; then
+    #    ln -s ../../lib/libulog.so.? libulog.so
+    #fi
+    #if [ -e ../../lib/libncursesw.so.? -a ! -L "libncursesw.so" ] ; then
+    #    ln -s ../../lib/libncursesw.so.? libncursesw.so
+    #fi
+    #if [ -e libncurses.so -a ! -L "libcurses.so" ] ; then
+    #    ln -s libncurses.so libcurses.so
+    #fi
+    #if [ -e libformw.so.? -a ! -L "libformw.so" ] ; then
+    #    ln -s libformw.so.? libformw.so
+    #fi
+    #if [ -L libformw.so -a ! -L "libform.so" ] ; then
+    #    ln -s libformw.so libform.so
+    #fi
+    #if [ -e libpanelw.so.? -a ! -L "libpanelw.so" ] ; then
+    #    ln -s libpanelw.so.? libpanelw.so
+    #fi
+    #if [ -L libpanelw.so -a ! -L "libpanel.so" ] ; then
+    #    ln -s libpanel.so libpanel.so
+    #fi
+    #if [ -e libmenuw.so.? -a ! -L "libmenuw.so" ] ; then
+    #    ln -s libmenuw.so libmenuw.so
+    #fi
+    #if [ -L libmenuw.so -a ! -L "libmenu.so" ] ; then
+    #    ln -s libmenuw.so libmenu.so
+    #fi
+    #if [ -e libxnet.so ] ; then
+    #    rm libxnet.so
+    #fi
+
     # modify motd entry
-    # FreeBSD 13 has changed the motd mechanism
-    if [ -f "${JAIL_DIR}/etc/motd.template" ] ; then
-        MOTD_FILE="${JAIL_DIR}/etc/motd.template"
-    # FreeBSD 12 has a classic /etc/motd file
-    else
-        MOTD_FILE="${JAIL_DIR}/etc/motd"
-    fi
+    MOTD_FILE="${JAIL_DIR}/etc/motd.template"
     printf "\n\t\"Go directly to Jail. Do not pass GO, do not collect \$200\"\n\n" > "${MOTD_FILE}"
 }
 
@@ -851,12 +863,15 @@ create_jail()
             install_pkgtool
         fi
 
+        if [ "${SSHD_ENABLE}" = "YES" ]; then
+            echo "sshd_enable=YES" >> 
+        fi
+
         printf "${BLUE}${INFO_STRING}${ANSI_END}"
         service jail start "${JAIL_NAME}"
 	if [ "$(sysrc -n pf_enable)" = "YES" ]; then
             service pf reload > /dev/null
 	fi
-
         # install additional packages
         install_pkgs
         # enable services specified in -e argument
