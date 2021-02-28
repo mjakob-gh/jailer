@@ -38,7 +38,7 @@ WARN_STRING="[WARN]"
 # Program basename
 PGM="${0##*/}" # Program basename
 
-VERSION="2.1"
+VERSION="2.2"
 
 # Number of arguments
 ARG_NUM=$#
@@ -96,6 +96,7 @@ AUTO_START="NO"
 BASE_UPDATE="NO"
 PKG_UPDATE="NO"
 PKG_QUIET=""
+ADD_USER="NO"
 
 VNET="NO"
 MINIJAIL="NO"
@@ -221,6 +222,9 @@ get_args()
             u)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     USER_NAME=${OPTARG}
+                    ADD_USER="YES"
+                else
+                    ADD_USER="YES"
                 fi
                 ;;
             v)
@@ -247,7 +251,7 @@ usage()
 
     ### SYNOPSIS
     printf "${BOLD}SYNOPSIS${ANSI_END}\n"
-    printf "  ${BOLD}${PGM} create jailname${ANSI_END} ${BOLD}-i${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} [${BOLD}-h${ANSI_END} ${UNDERLINE}hostname${ANSI_END} ${BOLD}-d${ANSI_END} ${UNDERLINE}domainname${ANSI_END} ${BOLD}-t${ANSI_END} ${UNDERLINE}timezone${ANSI_END} ${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END} ${BOLD}-n${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} ${BOLD}-v -P${ANSI_END} ${UNDERLINE}\"list of packages\"${ANSI_END} ${BOLD}-a${ANSI_END} ${UNDERLINE}ABI_Version${ANSI_END} ${BOLD}-e${ANSI_END} ${UNDERLINE}\"list of services\"${ANSI_END} ${BOLD}-s -q${ANSI_END}]\n" "${PGM}"
+    printf "  ${BOLD}${PGM} create jailname${ANSI_END} ${BOLD}-i${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} [${BOLD}-h${ANSI_END} ${UNDERLINE}hostname${ANSI_END} ${BOLD}-d${ANSI_END} ${UNDERLINE}domainname${ANSI_END} ${BOLD}-t${ANSI_END} ${UNDERLINE}timezone${ANSI_END} ${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END} ${BOLD}-n${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} ${BOLD}-v -P${ANSI_END} ${UNDERLINE}\"list of packages\"${ANSI_END} ${BOLD}-a${ANSI_END} ${UNDERLINE}ABI_Version${ANSI_END} ${BOLD}-e${ANSI_END} ${UNDERLINE}\"list of services\"${ANSI_END} ${BOLD}-s -q -o${ANSI_END}]\n" "${PGM}"
     printf "  ${BOLD}${PGM} destroy${ANSI_END} ${UNDERLINE}jailname${ANSI_END}\n"
     printf "  ${BOLD}${PGM} update${ANSI_END} ${UNDERLINE}jailname${ANSI_END} [-${BOLD}b -p -s${ANSI_END}]\n"
     printf "  ${BOLD}${PGM} list${ANSI_END}\n"
@@ -274,6 +278,8 @@ usage()
     printf "\t${BOLD}-n${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END}\n\t\tSet DNS server IP address of jail.\n"
     echo   ""
     printf "\t${BOLD}-v${ANSI_END} \tcreate a VNET jail.\n"
+    echo   ""
+    printf "\t${BOLD}-o${ANSI_END} \tenable SSH daemon in jail.\n"
     echo   ""
     printf "\t${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END}\n\t\tSet pkg repository of jail.\n"
     echo   ""
@@ -548,10 +554,10 @@ install_pkgs()
 enable_services()
 {
     if [ ! X"${SERVICES}" = "X" ]; then
-        printf "${BLUE}${INFO_STRING}${ANSI_END}Enabling Services:\n"
+        printf "${BLUE}${INFO_STRING}${ANSI_END}Enabling services: "
         for SERVICE in ${SERVICES}
         do
-            printf "${BLUE}${INFO_STRING}${ANSI_END}${BOLD}${WHITE}${SERVICE}${ANSI_END}\n"
+            printf "${BLUE}${INFO_STRING}${ANSI_END}${BOLD}${WHITE}${SERVICE}${ANSI_END} "
             service -j "${JAIL_NAME}" "${SERVICE}" enable > /dev/null
         done
         echo ""
@@ -587,7 +593,7 @@ copy_files()
 #
 get_next_interface_id()
 {
-    # Check for IFIDs in jail.conf AND in the network stack,
+    # Check for IFIDs in jail.conf AND in the actual network configuration,
     # to avoid unintentional duplicates
     ID_IFCONFIG=$( ifconfig | awk '/IFID/{gsub("IFID=","",$2); print $2}' | sort -u | tail -1 )
     ID_JAILCONF=$( awk '/IFID=/ {print $6}' /etc/jail.conf | sed 's#.IFID=##g' | sort -u | tail -1 )
@@ -865,13 +871,20 @@ create_jail()
 
         printf "${BLUE}${INFO_STRING}${ANSI_END}"
         service jail start "${JAIL_NAME}"
-	if [ "$(sysrc -n pf_enable)" = "YES" ]; then
+
+        if [ "$(sysrc -n pf_enable)" = "YES" ]; then
             service pf reload > /dev/null
-	fi
+        fi
+
         # install additional packages
         install_pkgs
         # enable services specified in -e argument
         enable_services
+
+        # create the user when argument -u is set
+        if [ "${ADD_USER}" = "YES" ]; then
+            add_user
+        fi
 
         printf "${BLUE}${INFO_STRING}${ANSI_END}"
         service jail stop "${JAIL_NAME}"
@@ -885,6 +898,14 @@ create_jail()
             service jail start "${JAIL_NAME}"
         fi
     fi
+}
+
+#
+#
+#
+add_user()
+{
+    pw -R "${JAIL_DIR}" useradd -n ${USER_NAME} -u ${USER_ID} -g wheel -c "Inside man" -s /bin/tcsh -m -w yes
 }
 
 #
