@@ -863,10 +863,6 @@ create_jail()
             install_pkgtool
         fi
 
-        if [ "${SSHD_ENABLE}" = "YES" ]; then
-            echo "sshd_enable=YES" >> 
-        fi
-
         printf "${BLUE}${INFO_STRING}${ANSI_END}"
         service jail start "${JAIL_NAME}"
 	if [ "$(sysrc -n pf_enable)" = "YES" ]; then
