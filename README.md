@@ -23,7 +23,7 @@ create a dataset for the jails (you can use option ```compress=lz4``` on systems
 ```shell
 zfs create -o compress=zstd -o mountpoint=/jails zroot/jails
 ```
-optional: set a sizelimit for the created jail dataset
+optional: set a sizelimit for the jail dataset
 ```shell
 zfs set quota=250G zroot/jails
 ```
