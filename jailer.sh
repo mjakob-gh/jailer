@@ -38,7 +38,7 @@ WARN_STRING="[WARN]"
 # Program basename
 PGM="${0##*/}" # Program basename
 
-VERSION="2.2"
+VERSION="2.3"
 
 # Number of arguments
 ARG_NUM=$#
@@ -97,7 +97,8 @@ BASE_UPDATE="NO"
 PKG_UPDATE="NO"
 PKG_QUIET=""
 ADD_USER="NO"
-
+USER_NAME=""
+USER_ID=3001
 VNET="NO"
 MINIJAIL="NO"
 INTERFACE_ID=0
@@ -223,8 +224,6 @@ get_args()
                 if [ ! X"${OPTARG}" = "X" ]; then
                     USER_NAME=${OPTARG}
                     ADD_USER="YES"
-                else
-                    ADD_USER="YES"
                 fi
                 ;;
             v)
@@ -283,6 +282,8 @@ usage()
     echo   ""
     printf "\t${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END}\n\t\tSet pkg repository of jail.\n"
     echo   ""
+    printf "\t${BOLD}-u${ANSI_END} ${UNDERLINE}username${ANSI_END}\n\t\tCreate user ${UNDERLINE}username${ANSI_END} in jail with uid ${USER_ID}. If -u argument is used, a value is mandatory.\n\t\tNOTE: password = username\n"
+    echo   ""
     printf "\t${BOLD}-h${ANSI_END} ${UNDERLINE}hostname${ANSI_END}\n\t\tSet hostname of the jail. If not set, the jailname is used.\n"
     echo   ""
     printf "\t${BOLD}-d${ANSI_END} ${UNDERLINE}domainname${ANSI_END}\n\t\tSet domainname of the jail. If not set, the domain of the host is used.\n"
@@ -306,7 +307,7 @@ usage()
     printf "\t\t%s\n" " • FreeBSD:13:amd64"
     echo   ""
             
-    printf "\t${BOLD}-m${ANSI_END}\tuse minimal basecore package.\n"
+    printf "\t${BOLD}-m${ANSI_END}\tuse minimal basecore package. (see: ${UNDERLINE}https://github.com/mjakob-gh/create-basecore-pkg${ANSI_END})\n"
     echo   ""
 
     printf "\t${BOLD}-e${ANSI_END} ${UNDERLINE}\"list of services\"${ANSI_END}\n\t\tEnable existing or just now installed services (see -P parameter), the list is seperated by whitespace.\n"
@@ -676,21 +677,6 @@ setup_system()
     printf "${BLUE}${INFO_STRING}${ANSI_END}Configure syslog:  ${BOLD}${WHITE}syslogd_flags: -s -> -ss${ANSI_END}\n"
     sysrc -R "${JAIL_DIR}" syslogd_flags="-ss" > /dev/null
 
-    # remove /boot directory, not needed in a jail
-    if [ ! X"${JAIL_DIR}" = "X" ] && [ -d "${JAIL_DIR}/boot/" ]; then
-        rm -r "${JAIL_DIR:?}/boot/"
-    fi
-
-    # remove man pages
-    if [ ! X"${JAIL_DIR}" = "X" ] && [ -d "${JAIL_DIR}/usr/share/man/" ]; then
-        rm -r "${JAIL_DIR:?}/usr/share/man/*"
-    fi
-
-    # remove test files
-    if [ ! X"${JAIL_DIR}" = "X" ] && [ -d "${JAIL_DIR}/usr/tests/" ]; then
-        rm -r "${JAIL_DIR:?}/usr/tests/*"
-    fi
-
     # set timezone in jail
     printf "${BLUE}${INFO_STRING}${ANSI_END}Setup timezone:    ${BOLD}${WHITE}${TIME_ZONE}${ANSI_END}\n"
     tzsetup -sC "${JAIL_DIR}" "${TIME_ZONE}"
@@ -729,48 +715,6 @@ setup_system()
         mkdir "${JAIL_DIR}/usr/include"
     fi
 
-    ## repair symlinks
-    #cd "${JAIL_DIR}/usr/lib/"
-    #if [ -d "../../usr/include" -a ! -L "include" ] ; then
-    #    ln -s ../../usr/include include
-    #fi
-    #if [ -e ../../lib/libncurses.so.? -a ! -L "libncurses.so" ] ; then
-    #    ln -s ../../lib/libncurses.so.? libncurses.so
-    #fi
-    #if [ -e ../../lib/libthr.so.? -a ! -L "libthr.so" ] ; then
-    #    ln -s ../../lib/libthr.so.? libthr.so
-    #fi
-    #if [ -e ../../lib/libulog.so.? -a ! -L "libulog.so" ] ; then
-    #    ln -s ../../lib/libulog.so.? libulog.so
-    #fi
-    #if [ -e ../../lib/libncursesw.so.? -a ! -L "libncursesw.so" ] ; then
-    #    ln -s ../../lib/libncursesw.so.? libncursesw.so
-    #fi
-    #if [ -e libncurses.so -a ! -L "libcurses.so" ] ; then
-    #    ln -s libncurses.so libcurses.so
-    #fi
-    #if [ -e libformw.so.? -a ! -L "libformw.so" ] ; then
-    #    ln -s libformw.so.? libformw.so
-    #fi
-    #if [ -L libformw.so -a ! -L "libform.so" ] ; then
-    #    ln -s libformw.so libform.so
-    #fi
-    #if [ -e libpanelw.so.? -a ! -L "libpanelw.so" ] ; then
-    #    ln -s libpanelw.so.? libpanelw.so
-    #fi
-    #if [ -L libpanelw.so -a ! -L "libpanel.so" ] ; then
-    #    ln -s libpanel.so libpanel.so
-    #fi
-    #if [ -e libmenuw.so.? -a ! -L "libmenuw.so" ] ; then
-    #    ln -s libmenuw.so libmenuw.so
-    #fi
-    #if [ -L libmenuw.so -a ! -L "libmenu.so" ] ; then
-    #    ln -s libmenuw.so libmenu.so
-    #fi
-    #if [ -e libxnet.so ] ; then
-    #    rm libxnet.so
-    #fi
-
     # modify motd entry
     MOTD_FILE="${JAIL_DIR}/etc/motd.template"
     printf "\n\t\"Go directly to Jail. Do not pass GO, do not collect \$200\"\n\n" > "${MOTD_FILE}"
@@ -781,6 +725,12 @@ setup_system()
 #
 setup_repository()
 {
+    if [ $MINIJAIL = "YES" ]; then
+        REPO_NAME="FreeBSD-basecore"
+    else
+        REPO_NAME="FreeBSD-pkgbase"
+    fi
+
     # setup repository
     printf "${BLUE}${INFO_STRING}${ANSI_END}Enable repository: ${BOLD}${WHITE}FreeBSD${ANSI_END}\n"
 
@@ -791,7 +741,7 @@ setup_repository()
     if [ -f "${TEMPLATE_DIR}/FreeBSD-repo.conf.template" ]; then
         sed -e "s|%%REPO_NAME%%|${REPO_NAME}|g"  \
             -e "s|%%REPO_HOST%%|${REPO_HOST}|g" \
-            "${TEMPLATE_DIR}/FreeBSD-repo.conf.template" >> "${JAIL_DIR}/usr/local/etc/pkg/repos/${REPO_NAME}.conf"
+            "${TEMPLATE_DIR}/FreeBSD-repo.conf.template" >> "${JAIL_DIR}/usr/local/etc/pkg/repos/FreeBSD-base.conf"
     else
         printf "${YELLOW}${WARN_STRING}${ANSI_END}  \"FreeBSD-repo.conf.template\" not found, please check ${BOLD}${WHITE}${TEMPLATE_DIR}${ANSI_END}\n"
     fi
@@ -905,7 +855,7 @@ create_jail()
 #
 add_user()
 {
-    pw -R "${JAIL_DIR}" useradd -n ${USER_NAME} -u ${USER_ID} -g wheel -c "Inside man" -s /bin/tcsh -m -w yes
+    pw -R "${JAIL_DIR}" useradd -n "${USER_NAME}" -u ${USER_ID} -g wheel -c "Inside man" -s /bin/tcsh -m -w yes
 }
 
 #
@@ -935,17 +885,13 @@ destroy_jail()
 #
 update_jail()
 {
-    if [ $MINIJAIL = "YES" ]; then
-        REPO_NAME="FreeBSD-basecore"
-    fi
-
     JAIL_DIR="$( zfs get -H -o value mountpoint "${JAIL_DATASET_ROOT}" )/${JAIL_NAME}"
 
     if [ "${BASE_UPDATE}" = "YES" ]; then
         printf "${BLUE}${INFO_STRING}${ANSI_END}Updating system\n"
         set -o pipefail
-        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true update  --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
-        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true upgrade --repository "${REPO_NAME}" ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD-base ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD-base ${PKG_QUIET} | tee -a "${LOG_FILE}"
         set +o pipefail
         if [ $? -lt 0 ]; then
             printf "${RED}${ERROR_STRING}${ANSI_END} Update of base failed!\n"
@@ -1049,6 +995,7 @@ JAIL_NAME="$2"
 if [ $ARG_NUM -eq 0 ] ; then
     printf "${RED}${ERROR_STRING}${ANSI_END} Missing command!\n"
     printf "${BLUE}${INFO_STRING}${ANSI_END}Use ${BOLD}${WHITE}${PGM} help${ANSI_END} to view usage.\n"
+    echo ""
     exit 2
 fi
 
@@ -1113,16 +1060,34 @@ case "${ACTION}" in
         reload_pf
         ;;
     login)
-        jexec -l "${JAIL_NAME}" login -f root
+        if [ ! "${JAIL_NAME}" = "" ]; then
+            jexec -l "${JAIL_NAME}" login -f root
+        else
+            printf "${RED}${ERROR_STRING}${ANSI_END} no jail specified.\n"
+            echo ""
+            exit 2
+        fi
         ;;
     exec)
-        shift 2 
-        jexec -l "${JAIL_NAME}" "$@"
+        shift 2
+        if [ ! "${JAIL_NAME}" = "" ]; then
+            jexec -l "${JAIL_NAME}" "$@"
+        else
+            printf "${RED}${ERROR_STRING}${ANSI_END} no jail specified.\n"
+            echo ""
+            exit 2
+        fi
         ;;
     repos)
         shift 2
         printf "Following repositories are configured in ${BOLD}${WHITE}${JAIL_NAME}${ANSI_END}:\n"
-        pkg -j "${JAIL_NAME}" -vv | awk '/^  .*: \{/ {gsub(":","", $1); printf  $1 " "}'
+        JAIL_REPOS=$(pkg -j "${JAIL_NAME}" -vv | awk '/^  .*: \{/ {gsub(":","", $1); printf  $1 " "}')
+        ( for JAIL_REPO in $JAIL_REPOS
+        {
+            REPO_URL=$(pkg -j "${JAIL_NAME}" -vv | grep -A 1 "  ${JAIL_REPO}:" | awk -F'"' '/url/ {print $2}')
+
+            printf "${JAIL_REPO}: ${WHITE}${REPO_URL}${ANSI_END}\n"
+        } ) | column -t
         echo   ""
         ;;
     *)

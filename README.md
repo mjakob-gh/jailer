@@ -19,9 +19,13 @@ chmod 755 /usr/local/sbin/jailer
 cp ./usr/local/etc/jailer.conf  /usr/local/etc/jailer.conf
 cp -a ./usr/local/share/jailer/ /usr/local/share/jailer/
 ```
-create a dataset for the jails
+create a dataset for the jails (you can use option ```compress=lz4``` on systems before FreeBSD 13, on newer systems you can use ```compress=zstd``` for better performing compression)
 ```shell
-zfs create -o compress=lz4 -o mountpoint=/jails zroot/jails
+zfs create -o compress=zstd -o mountpoint=/jails zroot/jails
+```
+optional: set a sizelimit for the created jail dataset
+```shell
+zfs set quota=250G zroot/jails
 ```
 edit the configuration file and adapt the entries to your environment:
 ```shell
@@ -48,9 +52,13 @@ jailer create j2 -i 192.168.0.102 -s -v
 ```shell
 jailer create j3 -i 192.168.0.103 -s -m
 ```
-* create and start a basecore jail, install (```-P```) and enable (```-e```) the nginx webserver:
+* create and start a basecore jail (```-m```), install (```-P```) and enable (```-e```) the nginx webserver:
 ```shell
 jailer create j4 -i 192.168.0.104 -s -m -P "nginx" -e "nginx"
+```
+* create and start a basecore jail (```-m```), with a VNET network (```-v```) and the SSH server enabled (```-o```):
+```shell
+jailer create j5 -i 192.168.0.105 -s -v -m -o
 ```
 ### Update jails
 * update a jail base (```-b```), the installed packages (```-p```) and restart it:
