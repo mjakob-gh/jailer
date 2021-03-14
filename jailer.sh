@@ -303,8 +303,8 @@ usage()
     printf "\t${BOLD}-a${ANSI_END} ${UNDERLINE}ABI_Version${ANSI_END}\n\t\tSet the ABI Version to match the packages to be installed to the jail.\n"
     echo   ""
     printf "\t\t%s\n" "NOTE: Possible values for ABI_VERSION"
-    printf "\t\t%s\n" " • FreeBSD:12:amd64"
     printf "\t\t%s\n" " • FreeBSD:13:amd64"
+    printf "\t\t%s\n" " • FreeBSD:14:amd64"
     echo   ""
             
     printf "\t${BOLD}-m${ANSI_END}\tuse minimal basecore package. (see: ${UNDERLINE}https://github.com/mjakob-gh/create-basecore-pkg${ANSI_END})\n"
@@ -481,13 +481,8 @@ install_baseos_pkg()
     else
         # EXTRA_PKGS: Some additional basesystem pkgs, extend the list if needed
         case "${ABI_VERSION}" in
-            *12*)
-                # FreeBSD 12
-                CORE_PKGS="FreeBSD-runtime"
-                EXTRA_PKGS="FreeBSD-libcasper FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at FreeBSD-dma"
-                ;;
-            *13*)
-                # FreeBSD 13
+            *13*|*14*)
+                # FreeBSD 13/14
                 CORE_PKGS="FreeBSD-utilities"
                 EXTRA_PKGS="FreeBSD-rc FreeBSD-dma FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at FreeBSD-zoneinfo"
                 ;;
@@ -890,8 +885,8 @@ update_jail()
     if [ "${BASE_UPDATE}" = "YES" ]; then
         printf "${BLUE}${INFO_STRING}${ANSI_END}Updating system\n"
         set -o pipefail
-        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD-base ${PKG_QUIET} | tee -a "${LOG_FILE}"
-        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD-base ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        jexec -l "${JAIL_NAME}" pkg -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD-base ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        jexec -l "${JAIL_NAME}" pkg -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD-base ${PKG_QUIET} | tee -a "${LOG_FILE}"
         set +o pipefail
         if [ $? -lt 0 ]; then
             printf "${RED}${ERROR_STRING}${ANSI_END} Update of base failed!\n"
@@ -902,8 +897,8 @@ update_jail()
     if [ ${PKG_UPDATE} = "YES" ]; then
         printf "${BLUE}${INFO_STRING}${ANSI_END}Updating packages\n"
         set -o pipefail
-        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
-        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        jexec -l "${JAIL_NAME}" pkg -o ASSUME_ALWAYS_YES=true update  --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
+        jexec -l "${JAIL_NAME}" pkg -o ASSUME_ALWAYS_YES=true upgrade --repository FreeBSD ${PKG_QUIET} | tee -a "${LOG_FILE}"
         set +o pipefail
         if [ $? -lt 0 ]; then
             printf "${RED}${ERROR_STRING}${ANSI_END} Update of the installed packages failed!\n"
