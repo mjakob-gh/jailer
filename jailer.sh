@@ -38,7 +38,7 @@ WARN_STRING="[WARN]"
 # Program basename
 PGM="${0##*/}" # Program basename
 
-VERSION="2.3"
+VERSION="2.4"
 
 # Number of arguments
 ARG_NUM=$#
@@ -66,6 +66,12 @@ OFFICIAL_REPO_NAME="FreeBSD"
 # Write actions of the script to a logfile: YES/NO
 # DEFAULT: NO
 WRITE_LOGFILE="NO"
+
+# Make jail managable via ansible by
+# - install python37 package
+# - adding an user ansible (uid: 3456, group :wheel, password login: disabled)
+#   Defaults: see jailer.conf
+ENABLE_ANSIBLE="NO"
 
 # load configuration file
 # default values
@@ -133,13 +139,16 @@ checkResult ()
 #
 get_args()
 {
-    while getopts "a:c:d:e:h:i:n:P:r:t:u:blmopqsv" option
+    while getopts "a:c:d:e:h:i:n:P:r:t:u:AblmpqsSv" option
     do
         case $option in
             a)
                 if [ ! X"${OPTARG}" = "X" ]; then
                     ABI_VERSION=${OPTARG}
                 fi
+                ;;
+            A)
+                ENABLE_ANSIBLE="YES"
                 ;;
             b)
                 BASE_UPDATE="YES"
@@ -156,7 +165,7 @@ get_args()
                 ;;
             e)
                 if [ ! X"${OPTARG}" = "X" ]; then
-                    SERVICES=${OPTARG}
+                    SERVICES="${SERVICES} ${OPTARG}"
                 fi
                 ;;
             h)
@@ -186,9 +195,6 @@ get_args()
                     exit 2
                 fi
                 ;;
-            o)
-                SERVICES="${SERVICES} sshd"
-                ;;
             p)
                 PKG_UPDATE="TRUE"
                 ;;
@@ -212,6 +218,9 @@ get_args()
                 ;;
             s)
                 AUTO_START="YES"
+                ;;
+            S)
+                SERVICES="${SERVICES} sshd"
                 ;;
             t)
                 if [ ! X"${OPTARG}" = "X" ]; then
@@ -278,7 +287,7 @@ usage()
     echo   ""
     printf "\t${BOLD}-v${ANSI_END} \tcreate a VNET jail.\n"
     echo   ""
-    printf "\t${BOLD}-o${ANSI_END} \tenable SSH daemon in jail.\n"
+    printf "\t${BOLD}-S${ANSI_END} \tenable SSH daemon in jail.\n"
     echo   ""
     printf "\t${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END}\n\t\tSet pkg repository of jail.\n"
     echo   ""
@@ -828,7 +837,7 @@ create_jail()
 
         # create the user when argument -u is set
         if [ "${ADD_USER}" = "YES" ]; then
-            add_user
+            pw -R "${JAIL_DIR}" useradd -n "${USER_NAME}" -u ${USER_ID} -g wheel -c "Inside man" -s /bin/tcsh -m -w yes
         fi
 
         printf "${BLUE}${INFO_STRING}${ANSI_END}"
@@ -843,14 +852,6 @@ create_jail()
             service jail start "${JAIL_NAME}"
         fi
     fi
-}
-
-#
-#
-#
-add_user()
-{
-    pw -R "${JAIL_DIR}" useradd -n "${USER_NAME}" -u ${USER_ID} -g wheel -c "Inside man" -s /bin/tcsh -m -w yes
 }
 
 #
@@ -955,6 +956,20 @@ reload_pf()
 }
 
 #
+# setup system to be managed by ansible
+#
+enable_ansible()
+{
+    # create ansible user
+    pw -R "${JAIL_DIR}" useradd -n "${ANSIBLE_USER_NAME}" -u ${ANSIBLE_USER_UID} -g wheel -c "ansible user" -s /bin/sh -m -w random > /dev/null
+
+    mkdir -p "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh"
+    echo "${PUB_KEY}" > "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh/authorized_keys"
+    chown -R ${ANSIBLE_USER_UID} "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh"
+    echo "${ANSIBLE_USER_NAME} ALL = (ALL) NOPASSWD: ALL" >> "${JAIL_DIR}/usr/local/etc/sudoers.d/${ANSIBLE_USER_NAME}"
+}
+
+#
 # print some host an jailer information
 #
 get_info()
@@ -1016,6 +1031,8 @@ case "${ACTION}" in
         get_args "$@"
         create_log_file
         create_jail
+        if [ "${ENABLE_ANSIBLE}" = "YES" ]; then
+        fi
         ;;
     destroy)
         shift 2
