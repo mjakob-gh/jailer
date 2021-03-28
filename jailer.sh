@@ -125,7 +125,7 @@ fi
 #
 # check
 #
-checkResult ()
+checkResult()
 {
     if [ "$1" -eq 0 ]; then
         printf "${GREEN}[OK]${ANSI_END}\n"
@@ -534,12 +534,14 @@ install_pkgtool()
 #
 install_pkgs()
 {
-    if [ ! X"${PKGS}" = "X" ]; then
+    _PKGS=$1
+
+    if [ ! X"${_PKGS}" = "X" ]; then
         printf "${BLUE}${INFO_STRING}${ANSI_END}Install pkgs:\n"
         # install the pkg package
         install_pkgtool
 
-        for PKG in ${PKGS}
+        for PKG in ${_PKGS}
         do
             printf "%s " "${PKG}"
             set -o pipefail
@@ -831,7 +833,7 @@ create_jail()
         fi
 
         # install additional packages
-        install_pkgs
+        install_pkgs "${PKGS}"
         # enable services specified in -e argument
         enable_services
 
@@ -960,13 +962,24 @@ reload_pf()
 #
 enable_ansible()
 {
-    # create ansible user
-    pw -R "${JAIL_DIR}" useradd -n "${ANSIBLE_USER_NAME}" -u ${ANSIBLE_USER_UID} -g wheel -c "ansible user" -s /bin/sh -m -w random > /dev/null
+    install_pkgs "${ANSIBLE_PKGS}"
 
+    # create ansible user
+    echo ""
+    printf "Create ansible user:\n"
+    printf "Username:           ${WHITE}${ANSIBLE_USER_NAME}${ANSI_END}\n"
+    printf "UID:                ${WHITE}${ANSIBLE_USER_UID}${ANSI_END}\n"
+    pw -R "${JAIL_DIR}" useradd -n "${ANSIBLE_USER_NAME}" -u "${ANSIBLE_USER_UID}" -g wheel -c "ansible user" -s /bin/sh -m -w random > /dev/null
+
+    printf "copy ssh public-key "
     mkdir -p "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh"
-    echo "${PUB_KEY}" > "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh/authorized_keys"
+    echo "${ANSIBLE_USER_PUBKEY}" > "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh/authorized_keys"
     chown -R ${ANSIBLE_USER_UID} "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh"
-    echo "${ANSIBLE_USER_NAME} ALL = (ALL) NOPASSWD: ALL" >> "${JAIL_DIR}/usr/local/etc/sudoers.d/${ANSIBLE_USER_NAME}"
+    checkResult $?
+
+    printf "enable sudo         "
+    echo "${ANSIBLE_USER_NAME} ALL = (ALL) NOPASSWD: ALL" > "${JAIL_DIR}/usr/local/etc/sudoers.d/${ANSIBLE_USER_NAME}"
+    checkResult $?
 }
 
 #
@@ -1032,6 +1045,9 @@ case "${ACTION}" in
         create_log_file
         create_jail
         if [ "${ENABLE_ANSIBLE}" = "YES" ]; then
+            enable_ansible
+            stop_jail "${JAIL_NAME}"
+            start_jail "${JAIL_NAME}"
         fi
         ;;
     destroy)
