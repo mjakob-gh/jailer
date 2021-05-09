@@ -301,6 +301,8 @@ usage()
     echo   ""
     printf "\t${BOLD}-d${ANSI_END} ${UNDERLINE}domainname${ANSI_END}\n\t\tSet domainname of the jail. If not set, the domain of the host is used.\n"
     echo   ""
+    printf "\t${BOLD}-A${ANSI_END} \tprepare jail to be managed by ansible, so install necessary packages, create user ansible and load the ssh key to the jail.\n"
+    echo   ""
     printf "\t${BOLD}-P${ANSI_END} ${UNDERLINE}\"list of packages\"${ANSI_END}\n\t\tPackages to install in the jail, the list is seperated by whitespace.\n"
     echo   ""
 
