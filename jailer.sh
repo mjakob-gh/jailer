@@ -73,6 +73,10 @@ WRITE_LOGFILE="NO"
 #   Defaults: see jailer.conf
 ENABLE_ANSIBLE="NO"
 
+# enable sshd
+# DEFAULT: NO
+ENABLE_SSHD="NO"
+
 # load configuration file
 # default values
 # check for config file                      
@@ -220,7 +224,7 @@ get_args()
                 AUTO_START="YES"
                 ;;
             S)
-                SERVICES="${SERVICES} sshd"
+                ENABLE_SSHD="YES"
                 ;;
             t)
                 if [ ! X"${OPTARG}" = "X" ]; then
@@ -493,7 +497,7 @@ install_baseos_pkg()
             *13*|*14*)
                 # FreeBSD 13/14
                 CORE_PKGS="FreeBSD-utilities"
-                EXTRA_PKGS="FreeBSD-rc FreeBSD-dma FreeBSD-libexecinfo FreeBSD-vi FreeBSD-at FreeBSD-zoneinfo"
+                EXTRA_PKGS="FreeBSD-rc FreeBSD-dma FreeBSD-libexecinfo FreeBSD-ssh FreeBSD-vi FreeBSD-at FreeBSD-zoneinfo"
                 ;;
             *)
                 printf "${RED}${ERROR_STRING}${ANSI_END} invalid OS Version detectet: ${BOLD}${WHITE}${ABI_VERSION}${ANSI_END}\n"
@@ -536,6 +540,8 @@ install_pkgs()
 {
     _PKGS=$1
 
+    pkg --jail "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true update -f ${PKG_QUIET} --repository "${OFFICIAL_REPO_NAME}"
+
     if [ ! X"${_PKGS}" = "X" ]; then
         printf "${BLUE}${INFO_STRING}${ANSI_END}Install pkgs:\n"
         # install the pkg package
@@ -545,13 +551,13 @@ install_pkgs()
         do
             printf "%s " "${PKG}"
             set -o pipefail
-            pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true install ${PKG_QUIET} --repository "${OFFICIAL_REPO_NAME}" "${PKG}" | tee -a "${LOG_FILE}"
+            pkg --jail "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true install ${PKG_QUIET} --repository "${OFFICIAL_REPO_NAME}" "${PKG}" | tee -a "${LOG_FILE}"
             if [ $? -lt 0 ]; then
                 printf "${RED}${ERROR_STRING}${ANSI_END} installation of ${BOLD}${WHITE}%s${ANSI_END} failed" "${PKG}"
             fi
             set +o pipefail
         done
-        pkg -j "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true ${PKG_QUIET} clean --all --quiet | tee -a "${LOG_FILE}"
+        pkg --jail "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true ${PKG_QUIET} clean --all --quiet | tee -a "${LOG_FILE}"
     fi
 }
 
@@ -826,7 +832,7 @@ create_jail()
         fi
 
         printf "${BLUE}${INFO_STRING}${ANSI_END}"
-        service jail start "${JAIL_NAME}"
+        start_jail "${JAIL_NAME}"
 
         if [ "$(sysrc -n pf_enable)" = "YES" ]; then
             service pf reload > /dev/null
@@ -843,7 +849,7 @@ create_jail()
         fi
 
         printf "${BLUE}${INFO_STRING}${ANSI_END}"
-        service jail stop "${JAIL_NAME}"
+        stop_jail "${JAIL_NAME}"
 
         # copy files into the jail specified in -c argument
         copy_files
@@ -851,7 +857,7 @@ create_jail()
         # start the jail when -s argument is set
         if [ ${AUTO_START} = "YES" ]; then
             printf "${BLUE}${INFO_STRING}${ANSI_END}"
-            service jail start "${JAIL_NAME}"
+            start_jail "${JAIL_NAME}"
         fi
     fi
 }
@@ -871,7 +877,7 @@ destroy_jail()
         exit 2
     else
         printf "${BLUE}${INFO_STRING}${ANSI_END}"
-        service jail stop "${JAIL_NAME}"
+        stop_jail "${JAIL_NAME}"
         destroy_jailconf_entry
         destroy_dataset
     fi
@@ -964,26 +970,50 @@ enable_ansible()
 {
     install_pkgs "${ANSIBLE_PKGS}"
 
+    # ansible is best used via ssh, so enable
+    # sshd when installing ansible
+    ENABLE_SSHD="YES"
+
     # create ansible user
-    echo ""
-    printf "Create ansible user:\n"
-    printf "Username:           ${WHITE}${ANSIBLE_USER_NAME}${ANSI_END}\n"
-    printf "UID:                ${WHITE}${ANSIBLE_USER_UID}${ANSI_END}\n"
+    printf "add user ${WHITE}${ANSIBLE_USER_NAME}${ANSI_END} (UID: ${WHITE}${ANSIBLE_USER_UID}${ANSI_END})     "
     pw -R "${JAIL_DIR}" useradd -n "${ANSIBLE_USER_NAME}" -u "${ANSIBLE_USER_UID}" -g wheel -c "ansible user" -s /bin/sh -m -w random > /dev/null
+    checkResult $?
 
-    printf "copy ssh public-key "
+    # "install" the default ssh public keoy of the ansible user
+    printf "copy ssh public-key              "
     mkdir -p "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh"
-    echo "${ANSIBLE_USER_PUBKEY}" > "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh/authorized_keys"
-    chown -R ${ANSIBLE_USER_UID} "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh"
-    checkResult $?
+    if [ -d "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh" ] ; then
+        echo "${ANSIBLE_USER_PUBKEY}" > "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh/authorized_keys"
+        chown -R ${ANSIBLE_USER_UID} "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh"
+        checkResult $?
+    else
+        checkResult 1
+    fi
 
-    printf "enable sudo         "
-    echo "${ANSIBLE_USER_NAME} ALL = (ALL) NOPASSWD: ALL" > "${JAIL_DIR}/usr/local/etc/sudoers.d/${ANSIBLE_USER_NAME}"
-    checkResult $?
+    # allow the ansible user to use sudo without password
+    printf "enable sudo                      "
+    if [ -d "${JAIL_DIR}/usr/local/etc/sudoers.d/" ] ; then
+        echo "${ANSIBLE_USER_NAME} ALL = (ALL) NOPASSWD: ALL" > "${JAIL_DIR}/usr/local/etc/sudoers.d/${ANSIBLE_USER_NAME}"
+        checkResult $?
+    else
+        checkResult 1
+    fi
+}
+
+enable_sshd()
+{
+    if [ ${ENABLE_SSHD} == "YES" ] ; then
+        printf "enable sshd                      "
+        sysrc -R "${JAIL_DIR}" sshd_enable=YES > /dev/null
+        checkResult $?
+
+        printf "sshd listen on                   ${WHITE}[${JAIL_IP}]${ANSI_END}\n"
+        echo "ListenAddress ${JAIL_IP}" >> "${JAIL_DIR}/etc/ssh/sshd_config"
+    fi
 }
 
 #
-# print some host an jailer information
+# print some host and jailer information
 #
 get_info()
 {
@@ -1044,11 +1074,12 @@ case "${ACTION}" in
         get_args "$@"
         create_log_file
         create_jail
-        if [ "${ENABLE_ANSIBLE}" = "YES" ]; then
-            enable_ansible
-            stop_jail "${JAIL_NAME}"
-            start_jail "${JAIL_NAME}"
-        fi
+        stop_jail "${JAIL_NAME}"
+        start_jail "${JAIL_NAME}"
+        [ "${ENABLE_ANSIBLE}" = "YES" ] && enable_ansible
+        [ "${ENABLE_SSHD}" = "YES" ]    && enable_sshd
+        stop_jail "${JAIL_NAME}"
+        start_jail "${JAIL_NAME}"
         ;;
     destroy)
         shift 2
@@ -1063,9 +1094,9 @@ case "${ACTION}" in
         update_jail
         if [ "${AUTO_START}" = "YES" ]; then
             printf "${BLUE}${INFO_STRING}${ANSI_END}"
-            service jail stop "${JAIL_NAME}"
+            stop_jail "${JAIL_NAME}"
             printf "${BLUE}${INFO_STRING}${ANSI_END}"
-            service jail start "${JAIL_NAME}"
+            start_jail "${JAIL_NAME}"
         fi
         ;;
     list)
@@ -1109,10 +1140,10 @@ case "${ACTION}" in
     repos)
         shift 2
         printf "Following repositories are configured in ${BOLD}${WHITE}${JAIL_NAME}${ANSI_END}:\n"
-        JAIL_REPOS=$(pkg -j "${JAIL_NAME}" -vv | awk '/^  .*: \{/ {gsub(":","", $1); printf  $1 " "}')
+        JAIL_REPOS=$(pkg --jail "${JAIL_NAME}" -vv | awk '/^  .*: \{/ {gsub(":","", $1); printf  $1 " "}')
         ( for JAIL_REPO in $JAIL_REPOS
         {
-            REPO_URL=$(pkg -j "${JAIL_NAME}" -vv | grep -A 1 "  ${JAIL_REPO}:" | awk -F'"' '/url/ {print $2}')
+            REPO_URL=$(pkg --jail "${JAIL_NAME}" -vv | grep -A 1 "  ${JAIL_REPO}:" | awk -F'"' '/url/ {print $2}')
 
             printf "${JAIL_REPO}: ${WHITE}${REPO_URL}${ANSI_END}\n"
         } ) | column -t

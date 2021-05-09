@@ -14,7 +14,7 @@
     allow.raw_sockets = 1;
 
     # Systemvalues
-    devfs_ruleset = 4;
+    # devfs_ruleset = 4;
 
     sysvmsg = new;
     sysvsem = new;

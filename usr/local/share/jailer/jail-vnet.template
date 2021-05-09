@@ -24,7 +24,7 @@
     exec.poststop += "ifconfig epair%%INTERFACE_ID%%a destroy";
 
     # Systemvalues
-    devfs_ruleset = 4;
+    # devfs_ruleset = 4;
 
     sysvmsg = new;
     sysvsem = new;

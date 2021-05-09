@@ -10,6 +10,7 @@ clone the repository to the directory jailer:
 ```shell
 git clone https://github.com/mjakob-gh/jailer.git jailer
 ```
+
 copy files an directories to their places:
 ```shell
 cd jailer
@@ -19,6 +20,27 @@ chmod 755 /usr/local/sbin/jailer
 cp ./usr/local/etc/jailer.conf  /usr/local/etc/jailer.conf
 cp -a ./usr/local/share/jailer/ /usr/local/share/jailer/
 ```
+
+create a "starter" ```/etc/jail.conf``` with these default values, jailer will add the jails to this file
+```shell
+# set default configuration values
+mount.devfs = true;
+exec.clean = true;
+allow.chflags = 1;
+
+devfs_ruleset = 5;
+
+exec.system_user  = "root";
+exec.jail_user    = "root";
+
+exec.timeout = 30;
+stop.timeout = 30;
+
+#########
+# Jails #
+#########
+```
+
 create a dataset for the jails (you can use option ```compress=lz4``` on systems before FreeBSD 13, on newer systems you can use ```compress=zstd``` for better performing compression)
 ```shell
 zfs create -o compress=zstd -o mountpoint=/jails zroot/jails
