@@ -143,7 +143,7 @@ checkResult()
 #
 get_args()
 {
-    while getopts "a:c:d:e:h:i:n:P:r:t:u:AblMpqsSv" option
+    while getopts "a:c:d:e:h:i:N:P:r:t:u:AblMpqsSv" option
     do
         case $option in
             a)
@@ -191,7 +191,7 @@ get_args()
             M)
                 MINIJAIL="YES"
                 ;;
-            n)
+            N)
                 if expr "${OPTARG}" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
                     NAME_SERVER=${OPTARG}
                 else
@@ -287,7 +287,7 @@ usage()
     echo   ""
     printf "\t${BOLD}-t${ANSI_END} ${UNDERLINE}timezone${ANSI_END}\n\t\tSet Timezone of jail.\n"
     echo   ""
-    printf "\t${BOLD}-n${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END}\n\t\tSet DNS server IP address of jail.\n"
+    printf "\t${BOLD}-N${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END}\n\t\tSet DNS server IP address of jail.\n"
     echo   ""
     printf "\t${BOLD}-v${ANSI_END} \tcreate a VNET jail.\n"
     echo   ""
