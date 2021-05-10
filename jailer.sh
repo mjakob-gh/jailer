@@ -143,7 +143,7 @@ checkResult()
 #
 get_args()
 {
-    while getopts "a:c:d:e:h:i:n:P:r:t:u:AblmpqsSv" option
+    while getopts "a:c:d:e:h:i:n:P:r:t:u:AblMpqsSv" option
     do
         case $option in
             a)
@@ -188,7 +188,7 @@ get_args()
             l)
                 USE_PAGER="YES"
                 ;;
-            m)
+            M)
                 MINIJAIL="YES"
                 ;;
             n)
@@ -322,7 +322,7 @@ usage()
     printf "\t\t%s\n" " • FreeBSD:14:amd64"
     echo   ""
             
-    printf "\t${BOLD}-m${ANSI_END}\tuse minimal basecore package. (see: ${UNDERLINE}https://github.com/mjakob-gh/create-basecore-pkg${ANSI_END})\n"
+    printf "\t${BOLD}-M${ANSI_END}\tuse minimal basecore package. (see: ${UNDERLINE}https://github.com/mjakob-gh/create-basecore-pkg${ANSI_END})\n"
     echo   ""
 
     printf "\t${BOLD}-e${ANSI_END} ${UNDERLINE}\"list of services\"${ANSI_END}\n\t\tEnable existing or just now installed services (see -P parameter), the list is seperated by whitespace.\n"
