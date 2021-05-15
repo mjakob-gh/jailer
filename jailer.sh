@@ -47,6 +47,10 @@ ARG_NUM=$#
 SUCCESS=0
 FAILURE=1
 
+# Default netmask for VNET jails
+# can be overwritten in jailer.conf
+JAIL_NETMASK="24"
+
 # Create zfs pools with/without compression
 # can be overwritten in jailer.conf
 ZFS_COMPRESSION="YES"
@@ -112,7 +116,7 @@ USER_ID=3001
 VNET="NO"
 MINIJAIL="NO"
 INTERFACE_ID=0
-
+NICE_MASK=""
 USE_PAGER="NO"
 
 # if domainname is not set in jailer.conf
@@ -143,7 +147,7 @@ checkResult()
 #
 get_args()
 {
-    while getopts "a:c:d:e:h:i:N:P:r:t:u:AblMpqsSv" option
+    while getopts "a:c:d:e:h:i:m:N:P:r:t:u:AblMpqsSv" option
     do
         case $option in
             a)
@@ -187,6 +191,19 @@ get_args()
                 ;;
             l)
                 USE_PAGER="YES"
+                ;;
+            m)
+                if [ ! X"${OPTARG}" = "X" ]; then
+                    if ( echo "${OPTARG}" | grep -E -q '^(254|252|248|240|224|192|128)\.0\.0\.0|255\.(254|252|248|240|224|192|128|0)\.0\.0|255\.255\.(254|252|248|240|224|192|128|0)\.0|255\.255\.255\.(254|252|248|240|224|192|128|0)' ); then
+                        JAIL_NETMASK=" netmask ${OPTARG}"
+                    elif [ ! -z "${OPTARG##*[!0-9]*}" ] && [ "${OPTARG}" -ge 0 ] && [ "${OPTARG}" -le 30 ] 2>/dev/null; then
+                        JAIL_NETMASK="/${OPTARG}"
+                    else
+                        printf "${RED}${ERROR_STRING}${ANSI_END} invalid netmask: ${BOLD}${WHITE}${OPTARG}${ANSI_END}\n"
+                        exit 1
+                    fi
+                fi
+                NICE_MASK="${OPTARG}"
                 ;;
             M)
                 MINIJAIL="YES"
@@ -284,6 +301,8 @@ usage()
 
     printf "  ${BOLD}${PGM} create jailname${ANSI_END} ${BOLD}-i${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} [${BOLD}-t${ANSI_END} ${UNDERLINE}timezone${ANSI_END} ${BOLD}-r${ANSI_END} ${UNDERLINE}reponame${ANSI_END} ${BOLD}-n${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END} ${BOLD}-v -P${ANSI_END} ${UNDERLINE}\"list of packages\"${ANSI_END} ${BOLD}-a${ANSI_END} ${UNDERLINE}ABI_Version${ANSI_END} ${BOLD}-e${ANSI_END} ${UNDERLINE}\"list of services\"${ANSI_END} ${BOLD}-s -q${ANSI_END}]\n"
     printf "\t${BOLD}-i${ANSI_END} ${UNDERLINE}ipaddress${ANSI_END}\n\t\tSet IP address of jail.\n"
+    echo   ""
+    printf "\t${BOLD}-m${ANSI_END} ${UNDERLINE}netmask${ANSI_END}\n\t\tSet netmask of VNET ip address. use CIDR form (e.g. /24) or \"longform\" (e.g. 255.255.255.0)\n"
     echo   ""
     printf "\t${BOLD}-t${ANSI_END} ${UNDERLINE}timezone${ANSI_END}\n\t\tSet Timezone of jail.\n"
     echo   ""
@@ -670,6 +689,7 @@ create_jailconf_entry()
         -e "s|%%JAIL_OSRELEASE%%|${JAIL_OSRELEASE}|g"   \
         -e "s|%%JAIL_OSRELDATE%%|${JAIL_OSRELDATE}|g"   \
         -e "s|%%JAIL_IP%%|${JAIL_IP}|g"                 \
+        -e "s|%%JAIL_NETMASK%%|${JAIL_NETMASK}|g"       \
         -e "s|%%JAIL_DIR%%|${JAIL_DIR}|g"               \
         -e "s|%%INTERFACE_ID%%|${INTERFACE_ID}|g"       \
         -e "s|%%BRIDGE%%|${BRIDGE}|g"                   \
@@ -702,6 +722,7 @@ setup_system()
     # print the IP Adress
     if [ ${VNET} = "YES" ]; then
         printf "${BLUE}${INFO_STRING}${ANSI_END}Add VNET IP:       ${BOLD}${WHITE}${JAIL_IP}${ANSI_END}\n"
+        printf "${BLUE}${INFO_STRING}${ANSI_END}Use netmask:       ${BOLD}${WHITE}${NICE_MASK}${ANSI_END}\n"
     fi
 
     # configure mailing

@@ -15,7 +15,7 @@
     exec.prestart += "ifconfig epair%%INTERFACE_ID%%a description 'IFID=%%INTERFACE_ID%% JAIL=%%JAIL_NAME%%'";
     exec.prestart += "ifconfig %%BRIDGE%% addm epair%%INTERFACE_ID%%a";
 
-    command  = "ifconfig epair%%INTERFACE_ID%%b inet %%JAIL_IP%%/%%JAIL_NETMASK%%";
+    command  = "ifconfig epair%%INTERFACE_ID%%b inet %%JAIL_IP%%%%JAIL_NETMASK%%";
     command += "route -n add -inet default %%GATEWAY%%";
 
     exec.prestop   = "ifconfig epair%%INTERFACE_ID%%b -vnet %%JAIL_NAME%%";
