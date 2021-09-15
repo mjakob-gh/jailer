@@ -38,7 +38,7 @@ WARN_STRING="[WARN]"
 # Program basename
 PGM="${0##*/}" # Program basename
 
-VERSION="2.4"
+VERSION="2.5"
 
 # Number of arguments
 ARG_NUM=$#
@@ -116,7 +116,6 @@ USER_ID=3001
 VNET="NO"
 MINIJAIL="NO"
 INTERFACE_ID=0
-NICE_MASK=""
 USE_PAGER="NO"
 
 # if domainname is not set in jailer.conf
@@ -197,13 +196,12 @@ get_args()
                     if ( echo "${OPTARG}" | grep -E -q '^(254|252|248|240|224|192|128)\.0\.0\.0|255\.(254|252|248|240|224|192|128|0)\.0\.0|255\.255\.(254|252|248|240|224|192|128|0)\.0|255\.255\.255\.(254|252|248|240|224|192|128|0)' ); then
                         JAIL_NETMASK=" netmask ${OPTARG}"
                     elif [ ! -z "${OPTARG##*[!0-9]*}" ] && [ "${OPTARG}" -ge 0 ] && [ "${OPTARG}" -le 30 ] 2>/dev/null; then
-                        JAIL_NETMASK="/${OPTARG}"
+                        JAIL_NETMASK="${OPTARG}"
                     else
                         printf "${RED}${ERROR_STRING}${ANSI_END} invalid netmask: ${BOLD}${WHITE}${OPTARG}${ANSI_END}\n"
                         exit 1
                     fi
                 fi
-                NICE_MASK="${OPTARG}"
                 ;;
             M)
                 MINIJAIL="YES"
@@ -564,13 +562,13 @@ install_pkgs()
     pkg --jail "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true update -f ${PKG_QUIET} --repository "${OFFICIAL_REPO_NAME}"
 
     if [ ! X"${_PKGS}" = "X" ]; then
-        printf "${BLUE}${INFO_STRING}${ANSI_END}Install pkgs:\n"
+        printf "\n${BLUE}${INFO_STRING}${ANSI_END}Install pkgs:\n"
         # install the pkg package
         install_pkgtool
 
         for PKG in ${_PKGS}
         do
-            printf "%s " "${PKG}"
+            printf "${BLUE}Installing %s${ANSI_END}\n" "${PKG}"
             set -o pipefail
             pkg --jail "${JAIL_NAME}" -o ASSUME_ALWAYS_YES=true install ${PKG_QUIET} --repository "${OFFICIAL_REPO_NAME}" "${PKG}" | tee -a "${LOG_FILE}"
             if [ $? -lt 0 ]; then
@@ -722,7 +720,7 @@ setup_system()
     # print the IP Adress
     if [ ${VNET} = "YES" ]; then
         printf "${BLUE}${INFO_STRING}${ANSI_END}Add VNET IP:       ${BOLD}${WHITE}${JAIL_IP}${ANSI_END}\n"
-        printf "${BLUE}${INFO_STRING}${ANSI_END}Use netmask:       ${BOLD}${WHITE}${NICE_MASK}${ANSI_END}\n"
+        printf "${BLUE}${INFO_STRING}${ANSI_END}Use netmask:       ${BOLD}${WHITE}${JAIL_NETMASK}${ANSI_END}\n"
     fi
 
     # configure mailing
@@ -1002,7 +1000,7 @@ enable_ansible()
     pw -R "${JAIL_DIR}" useradd -n "${ANSIBLE_USER_NAME}" -u "${ANSIBLE_USER_UID}" -g wheel -c "ansible user" -s /bin/sh -m -w random > /dev/null
     checkResult $?
 
-    # "install" the default ssh public keoy of the ansible user
+    # "install" the default ssh public key of the ansible user
     printf "copy ssh public-key              "
     mkdir -p "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh"
     if [ -d "${JAIL_DIR}/home/${ANSIBLE_USER_NAME}/.ssh" ] ; then
