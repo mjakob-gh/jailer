@@ -1,6 +1,6 @@
 %%JAIL_NAME%% {
     # Hostname
-    host.hostname   = "%%JAIL_HOSTNAME%%.%%JAIL_DOMAINNAME%%";
+    host.hostname   = "${name}.%%JAIL_DOMAINNAME%%";
     host.domainname = "%%JAIL_DOMAINNAME%%";
     host.hostuuid   = "%%JAIL_UUID%%";
 
@@ -12,13 +12,13 @@
     vnet.interface = "epair%%INTERFACE_ID%%b";
 
     exec.prestart += "ifconfig epair%%INTERFACE_ID%% create up";
-    exec.prestart += "ifconfig epair%%INTERFACE_ID%%a description 'IFID=%%INTERFACE_ID%% JAIL=%%JAIL_NAME%%'";
+    exec.prestart += "ifconfig epair%%INTERFACE_ID%%a description 'IFID=%%INTERFACE_ID%% JAIL=${name}'";
     exec.prestart += "ifconfig %%BRIDGE%% addm epair%%INTERFACE_ID%%a";
 
     command  = "ifconfig epair%%INTERFACE_ID%%b inet %%JAIL_IP%%/%%JAIL_NETMASK%%";
     command += "route -n add -inet default %%GATEWAY%%";
 
-    exec.prestop   = "ifconfig epair%%INTERFACE_ID%%b -vnet %%JAIL_NAME%%";
+    exec.prestop   = "ifconfig epair%%INTERFACE_ID%%b -vnet ${name}";
 
     exec.poststop += "ifconfig %%BRIDGE%% deletem epair%%INTERFACE_ID%%a";
     exec.poststop += "ifconfig epair%%INTERFACE_ID%%a destroy";
@@ -37,10 +37,10 @@
     exec.timeout = 90;
 
     # Pre-/Post-Scripts
-    exec.prestart  += "logger trying to start jail %%JAIL_NAME%% ...";
-    exec.poststart += "logger jail %%JAIL_NAME%% has started";
-    exec.prestop   += "logger shutting down jail %%JAIL_NAME%%";
-    exec.poststop  += "logger jail %%JAIL_NAME%% has shut down";
+    exec.prestart  += "logger trying to start jail ${name} ...";
+    exec.poststart += "logger jail ${name} has started";
+    exec.prestop   += "logger shutting down jail ${name}";
+    exec.poststop  += "logger jail ${name} has shut down";
 
     # Start Script
     exec.start  = "/bin/sh /etc/rc";

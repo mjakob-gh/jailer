@@ -1,6 +1,6 @@
 %%JAIL_NAME%% {
     # Hostname
-    host.hostname   = "%%JAIL_HOSTNAME%%.%%JAIL_DOMAINNAME%%";
+    host.hostname   = "${name}.%%JAIL_DOMAINNAME%%";
     host.domainname = "%%JAIL_DOMAINNAME%%";
     host.hostuuid   = "%%JAIL_UUID%%";
 
@@ -25,12 +25,6 @@
 
     ## Script execution
     exec.timeout = 90;
-
-    # Pre-/Post-Scripts
-    exec.prestart  += "logger trying to start jail %%JAIL_NAME%% ...";
-    exec.poststart += "logger jail %%JAIL_NAME%% has started";
-    exec.prestop   += "logger shutting down jail %%JAIL_NAME%%";
-    exec.poststop  += "logger jail %%JAIL_NAME%% has shut down";
 
     # Start Script
     exec.start  = "/bin/sh /etc/rc";
