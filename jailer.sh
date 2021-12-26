@@ -1034,6 +1034,40 @@ enable_sshd()
 }
 
 #
+# print out the running jail "configuration"
+#
+get_list()
+{
+    {
+    echo "name jid vnet ip4.addr host.hostname osrelease osreldate path"
+    echo "---- --- ---- -------- ------------- --------- --------- ----"
+        {
+            for JID in $(jls -N jid); do
+            _NAME=$(jls -N -j $JID name)
+            _VNET=$(jls -N -j $JID vnet)
+            _HOSTNAME=$(jls -N -j $JID host.hostname)
+            _IPV4=$(jls -N -j $JID ip4.addr)
+            _OSRELEASE=$(jexec -l $JID uname -r)
+            _OSRELDATE=$(jexec -l $JID uname -U)
+            _PATH=$(jls -N -j $JID path)
+
+            if [ "$_IPV4" = "-" -a "$_VNET" = "new" ]; then
+                _IPV4=$(jexec -l $JID ifconfig | awk '{ if ($1 == "inet" && $2 != "127.0.0.1") printf $2}')
+            fi
+
+            if [ "$_VNET" = "new" ]; then
+                _VNET="true"
+            else
+                _VNET="false"
+            fi
+
+            echo "$_NAME $JID $_VNET $_IPV4 $_HOSTNAME $_OSRELEASE $_OSRELDATE $_PATH"
+        done
+        } | sort
+    } | column -t
+}
+
+#
 # print some host and jailer information
 #
 get_info()
@@ -1121,7 +1155,8 @@ case "${ACTION}" in
         fi
         ;;
     list)
-        jls -h jid name vnet ip4.addr host.hostname osrelease osreldate path | column -t
+        #jls -h jid name vnet ip4.addr host.hostname osrelease osreldate path | column -t
+        get_list
         ;;
     start)
         start_jail "${JAIL_NAME}"
