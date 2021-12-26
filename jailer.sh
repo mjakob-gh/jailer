@@ -656,22 +656,11 @@ get_next_interface_id()
 }
 
 #
-# get the FreeBSD Version data from a installed file via file
-#
-get_freebsd_version()
-{
-    # get Version data from the just installed jails "/sbin/init" file, well via file
-    JAIL_OSRELEASE=$( awk '/^USERLAND_VERSION=/{gsub("USERLAND_VERSION=","",$1);gsub("\"","",$1); print $1}' "${JAIL_DIR}/bin/freebsd-version" )
-    JAIL_OSRELDATE=$( file "${JAIL_DIR}/sbin/init" | awk '{print $15}' | sed -e 's/(//' -e 's/)//' -e 's/,//' )
-}
-
-#
 # add the jail configuration to jail.conf
 #
 create_jailconf_entry()
 {
     get_next_interface_id
-    get_freebsd_version
 
     if [ "${JAIL_HOSTNAME}" = "" ] ; then
         JAIL_HOSTNAME="${JAIL_NAME}"
@@ -684,8 +673,6 @@ create_jailconf_entry()
         -e "s|%%JAIL_HOSTNAME%%|${JAIL_HOSTNAME}|g"     \
         -e "s|%%JAIL_INTERFACE%%|${JAIL_INTERFACE}|g"   \
         -e "s|%%JAIL_UUID%%|${JAIL_UUID}|g"             \
-        -e "s|%%JAIL_OSRELEASE%%|${JAIL_OSRELEASE}|g"   \
-        -e "s|%%JAIL_OSRELDATE%%|${JAIL_OSRELDATE}|g"   \
         -e "s|%%JAIL_IP%%|${JAIL_IP}|g"                 \
         -e "s|%%JAIL_NETMASK%%|${JAIL_NETMASK}|g"       \
         -e "s|%%JAIL_DIR%%|${JAIL_DIR}|g"               \

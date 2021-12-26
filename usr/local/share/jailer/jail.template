@@ -4,9 +4,6 @@
     host.domainname = "%%JAIL_DOMAINNAME%%";
     host.hostuuid   = "%%JAIL_UUID%%";
 
-    osrelease = "%%JAIL_OSRELEASE%%";
-    osreldate = "%%JAIL_OSRELDATE%%";
-
     # Network
     interface = %%JAIL_INTERFACE%%;
     ip4.addr  = %%JAIL_IP%%;
